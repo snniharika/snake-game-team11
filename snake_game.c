@@ -1,3 +1,4 @@
+```c
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -9,54 +10,41 @@
 #define MAX_SCORE 1000000
 #define ADMIN_PASSWORD "ChangeThisPassword"
 
-static int snakeX = WIDTH / 2;
-static int snakeY = HEIGHT / 2;
-static int foodX, foodY;
-static int score = 0;
-static int gameOver = 0;
-static char direction = ' ';
-
-/* Configuration structure */
 typedef struct {
     int width;
     int height;
     int maxScore;
 } GameConfig;
 
-/* Validate configuration before starting */
+static int snakeX;
+static int snakeY;
+static int foodX;
+static int foodY;
+static int score = 0;
+static int gameOver = 0;
+static char direction = ' ';
+
+/* Validate configuration */
 static int isValidConfig(const GameConfig *config)
 {
-    if (config == NULL) {
-        return 0;
-    }
-
-    if (config->width < 5 || config->width > 100) {
-        return 0;
-    }
-
-    if (config->height < 5 || config->height > 50) {
-        return 0;
-    }
-
-    if (config->maxScore < 1 ||
-        config->maxScore > MAX_SCORE) {
-        return 0;
-    }
-
-    return 1;
+    return config != NULL &&
+           config->width >= 5 && config->width <= 100 &&
+           config->height >= 5 && config->height <= 50 &&
+           config->maxScore >= 1 &&
+           config->maxScore <= MAX_SCORE;
 }
 
-/* Validate game commands */
+/* Validate commands */
 static int isValidDirection(char input)
 {
     input = (char)tolower((unsigned char)input);
 
     return input == 'w' || input == 'a' ||
            input == 's' || input == 'd' ||
-           input == 'q' || input == 'm';
+           input == 'm' || input == 'q';
 }
 
-/* Prevent immediate reverse movement */
+/* Prevent instant reverse movement */
 static int isOppositeDirection(char current, char next)
 {
     return (current == 'w' && next == 's') ||
@@ -65,7 +53,7 @@ static int isOppositeDirection(char current, char next)
            (current == 'd' && next == 'a');
 }
 
-/* Controlled score update */
+/* Award score only within the configured limit */
 static void awardFoodPoint(const GameConfig *config)
 {
     if (score < config->maxScore) {
@@ -73,7 +61,7 @@ static void awardFoodPoint(const GameConfig *config)
     }
 }
 
-/* Check admin password */
+/* Authenticate admin */
 static int isAdminAuthorized(void)
 {
     char password[50];
@@ -87,7 +75,7 @@ static int isAdminAuthorized(void)
     return strcmp(password, ADMIN_PASSWORD) == 0;
 }
 
-/* Admin menu */
+/* Admin operations */
 static void adminMenu(void)
 {
     char choice;
@@ -104,7 +92,7 @@ static void adminMenu(void)
     printf("Choose an option: ");
 
     if (scanf(" %c", &choice) != 1) {
-        printf("Invalid input.\n");
+        printf("Could not read admin choice.\n");
         return;
     }
 
@@ -133,7 +121,7 @@ static void placeFood(const GameConfig *config)
     } while (foodX == snakeX && foodY == snakeY);
 }
 
-/* Draw the game board */
+/* Draw board */
 static void drawBoard(const GameConfig *config)
 {
     int x, y;
@@ -142,13 +130,12 @@ static void drawBoard(const GameConfig *config)
 
     for (y = 0; y < config->height; y++) {
         for (x = 0; x < config->width; x++) {
-            if (x == snakeX && y == snakeY) {
+            if (x == snakeX && y == snakeY)
                 printf("O ");
-            } else if (x == foodX && y == foodY) {
+            else if (x == foodX && y == foodY)
                 printf("* ");
-            } else {
+            else
                 printf(". ");
-            }
         }
         printf("\n");
     }
@@ -156,22 +143,36 @@ static void drawBoard(const GameConfig *config)
     printf("W=up A=left S=down D=right M=admin Q=quit\n");
 }
 
+/* Read one command; report end-of-input safely */
+static int readCommand(char *input)
+{
+    int result = scanf(" %c", input);
+
+    if (result != 1) {
+        return 0;
+    }
+
+    *input = (char)tolower((unsigned char)*input);
+    return 1;
+}
+
 int main(void)
 {
     char input;
 
-    /* Default configuration */
     const GameConfig config = {
         WIDTH,
         HEIGHT,
         MAX_SCORE
     };
 
-    /* Reject invalid configuration */
     if (!isValidConfig(&config)) {
         fprintf(stderr, "Invalid game configuration.\n");
         return EXIT_FAILURE;
     }
+
+    snakeX = config.width / 2;
+    snakeY = config.height / 2;
 
     srand((unsigned int)time(NULL));
     placeFood(&config);
@@ -183,12 +184,10 @@ int main(void)
         drawBoard(&config);
         printf("Enter command: ");
 
-        if (scanf(" %c", &input) != 1) {
-            printf("Input error. Exiting safely.\n");
+        if (!readCommand(&input)) {
+            printf("\nInput ended or could not be read. Exiting safely.\n");
             break;
         }
-
-        input = (char)tolower((unsigned char)input);
 
         if (!isValidDirection(input)) {
             printf("Invalid input. Use W, A, S, D, M or Q.\n");
@@ -196,6 +195,7 @@ int main(void)
         }
 
         if (input == 'q') {
+            printf("Game ended by player.\n");
             break;
         }
 
@@ -218,6 +218,7 @@ int main(void)
         else if (input == 'a') nextX--;
         else if (input == 'd') nextX++;
 
+        /* Check bounds before changing position */
         if (nextX < 0 || nextX >= config.width ||
             nextY < 0 || nextY >= config.height) {
             printf("Game Over! You hit a wall.\n");
@@ -236,8 +237,9 @@ int main(void)
         }
     }
 
-    printf("Final score: %d\n", score);
+    printf("\nFinal score: %d\n", score);
     printf("Thanks for playing!\n");
 
     return EXIT_SUCCESS;
 }
+```
