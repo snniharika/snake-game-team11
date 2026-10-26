@@ -6,22 +6,29 @@ static void clear_screen(void) {
     printf("\033[2J\033[H");
 }
 
+
 void render_menu(int selected, Difficulty difficulty) {
-    const char *levels[] = {"Easy", "Medium", "Hard"};
+    (void)difficulty;  // Difficulty selection belongs to SNK-F-002.
 
-    clear_screen();
+    const char *options[] = {
+        "Start Game",
+        "Difficulty Select",
+        "Exit"
+    };
 
+    printf("\033[2J\033[H");
     printf("          SNAKE GAME\n");
 
-    printf("%s Start Game\n", selected == 0 ? "> " : "  ");
-    printf("%s Difficulty: %s\n",
-           selected == 1 ? "> " : "  ", levels[difficulty]);
-    printf("%s Exit\n", selected == 2 ? "> " : "  ");
+    for (int i = 0; i < 3; i++) {
+        printf("%s %s\n",
+               selected == i ? ">" : " ",
+               options[i]);
+    }
 
-    printf("\nUse Up/Down and Enter to select.\n");
-    printf("WASD also works. X exits.\n");
+    printf("\nUse UP/DOWN arrows and ENTER.\n");
     fflush(stdout);
 }
+
 
 void render_game(const GameState *game) {
     clear_screen();

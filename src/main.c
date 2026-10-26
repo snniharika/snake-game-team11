@@ -1,6 +1,7 @@
 #include "snake.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <windows.h>
 
@@ -50,33 +51,28 @@ static bool play_game(Difficulty difficulty) {
     }
 }
 
-int main(void) {
-    srand((unsigned int)time(NULL));
 
+int main(void) {
     initialize_input();
 
     int selected = 0;
-    Difficulty difficulty = EASY;
     bool running = true;
 
     while (running) {
-        render_menu(selected, difficulty);
+        render_menu(selected, EASY);
+
         Key key = read_key();
 
         if (key == KEY_UP) {
             selected = (selected + 2) % 3;
         } else if (key == KEY_DOWN) {
             selected = (selected + 1) % 3;
-        } else if (key == KEY_QUIT) {
-            running = false;
         } else if (key == KEY_ENTER) {
-            if (selected == 0) {
-                running = play_game(difficulty);
-            } else if (selected == 1) {
-                difficulty = (Difficulty)((difficulty + 1) % 3);
-            } else {
+            if (selected == 2) {
                 running = false;
             }
+        } else if (key == KEY_QUIT) {
+            running = false;
         }
 
         Sleep(40);
@@ -85,3 +81,4 @@ int main(void) {
     shutdown_input();
     return 0;
 }
+
