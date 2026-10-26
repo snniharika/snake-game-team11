@@ -53,13 +53,14 @@ static bool play_game(Difficulty difficulty) {
 
 
 int main(void) {
+    Difficulty difficulty = EASY;
     initialize_input();
 
     int selected = 0;
     bool running = true;
 
     while (running) {
-        render_menu(selected, EASY);
+        render_menu(selected, difficulty);
 
         Key key = read_key();
 
@@ -68,7 +69,11 @@ int main(void) {
         } else if (key == KEY_DOWN) {
             selected = (selected + 1) % 3;
         } else if (key == KEY_ENTER) {
-            if (selected == 2) {
+            if (selected == 0) {
+                /* Start Game: connected in the gameplay implementation. */
+            } else if (selected == 1) {
+                difficulty = (Difficulty)((difficulty + 1) % 3);
+            } else if (selected == 2) {
                 running = false;
             }
         } else if (key == KEY_QUIT) {

@@ -7,9 +7,9 @@ static void clear_screen(void) {
 }
 
 
-void render_menu(int selected, Difficulty difficulty) {
-    (void)difficulty;  // Difficulty selection belongs to SNK-F-002.
 
+void render_menu(int selected, Difficulty difficulty) {
+    const char *levels[] = {"Easy", "Medium", "Hard"};
     const char *options[] = {
         "Start Game",
         "Difficulty Select",
@@ -20,9 +20,13 @@ void render_menu(int selected, Difficulty difficulty) {
     printf("          SNAKE GAME\n");
 
     for (int i = 0; i < 3; i++) {
-        printf("%s %s\n",
-               selected == i ? ">" : " ",
-               options[i]);
+        printf("%s ", selected == i ? ">" : " ");
+
+        if (i == 1) {
+            printf("%s: %s\n", options[i], levels[difficulty]);
+        } else {
+            printf("%s\n", options[i]);
+        }
     }
 
     printf("\nUse UP/DOWN arrows and ENTER.\n");
