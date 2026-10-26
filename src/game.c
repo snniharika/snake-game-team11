@@ -69,24 +69,34 @@ void initialize_game(GameState *game, Difficulty difficulty) {
 
 /* SNK-F-004: Ignore direct 180-degree reversals. */
 void update_direction(GameState *game, Key key) {
-    Direction requested = game->direction;
+    Direction new_direction = game->direction;
 
     switch (key) {
-        case KEY_UP:    requested = DIR_UP; break;
-        case KEY_DOWN:  requested = DIR_DOWN; break;
-        case KEY_LEFT:  requested = DIR_LEFT; break;
-        case KEY_RIGHT: requested = DIR_RIGHT; break;
-        default: return;
+        case KEY_UP:
+            new_direction = DIR_UP;
+            break;
+        case KEY_DOWN:
+            new_direction = DIR_DOWN;
+            break;
+        case KEY_LEFT:
+            new_direction = DIR_LEFT;
+            break;
+        case KEY_RIGHT:
+            new_direction = DIR_RIGHT;
+            break;
+        default:
+            return;
     }
 
-    bool opposite =
-        (game->direction == DIR_UP && requested == DIR_DOWN) ||
-        (game->direction == DIR_DOWN && requested == DIR_UP) ||
-        (game->direction == DIR_LEFT && requested == DIR_RIGHT) ||
-        (game->direction == DIR_RIGHT && requested == DIR_LEFT);
+    /* Prevent the snake from reversing directly. */
+    if ((game->direction == DIR_UP && new_direction == DIR_DOWN) ||
+        (game->direction == DIR_DOWN && new_direction == DIR_UP) ||
+        (game->direction == DIR_LEFT && new_direction == DIR_RIGHT) ||
+        (game->direction == DIR_RIGHT && new_direction == DIR_LEFT)) {
+        return;
+    }
 
-    if (!opposite)
-        game->direction = requested;
+    game->direction = new_direction;
 }
 
 void update_game(GameState *game) {
