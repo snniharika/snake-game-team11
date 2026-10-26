@@ -1,4 +1,3 @@
-```c
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -24,17 +23,22 @@ static int score = 0;
 static int gameOver = 0;
 static char direction = ' ';
 
-/* Validate configuration */
-static int isValidConfig(const GameConfig *config)
+static const GameConfig config = {
+    WIDTH,
+    HEIGHT,
+    MAX_SCORE
+};
+
+/* Validate configuration once before the game starts */
+static int isValidConfig(const GameConfig *cfg)
 {
-    return config != NULL &&
-           config->width >= 5 && config->width <= 100 &&
-           config->height >= 5 && config->height <= 50 &&
-           config->maxScore >= 1 &&
-           config->maxScore <= MAX_SCORE;
+    return cfg != NULL &&
+           cfg->width >= 5 && cfg->width <= 100 &&
+           cfg->height >= 5 && cfg->height <= 50 &&
+           cfg->maxScore >= 1 && cfg->maxScore <= MAX_SCORE;
 }
 
-/* Validate commands */
+/* Validate keyboard commands */
 static int isValidDirection(char input)
 {
     input = (char)tolower((unsigned char)input);
@@ -44,7 +48,7 @@ static int isValidDirection(char input)
            input == 'm' || input == 'q';
 }
 
-/* Prevent instant reverse movement */
+/* Prevent immediate reverse movement */
 static int isOppositeDirection(char current, char next)
 {
     return (current == 'w' && next == 's') ||
@@ -53,15 +57,15 @@ static int isOppositeDirection(char current, char next)
            (current == 'd' && next == 'a');
 }
 
-/* Award score only within the configured limit */
-static void awardFoodPoint(const GameConfig *config)
+/* Keep score updates in one function */
+static void awardFoodPoint(void)
 {
-    if (score < config->maxScore) {
+    if (score < config.maxScore) {
         score++;
     }
 }
 
-/* Authenticate admin */
+/* Admin authentication */
 static int isAdminAuthorized(void)
 {
     char password[50];
@@ -113,42 +117,41 @@ static void adminMenu(void)
 }
 
 /* Place food away from the snake */
-static void placeFood(const GameConfig *config)
+static void placeFood(void)
 {
     do {
-        foodX = rand() % config->width;
-        foodY = rand() % config->height;
+        foodX = rand() % config.width;
+        foodY = rand() % config.height;
     } while (foodX == snakeX && foodY == snakeY);
 }
 
-/* Draw board */
-static void drawBoard(const GameConfig *config)
+/* Draw the board */
+static void drawBoard(void)
 {
     int x, y;
 
     printf("\nScore: %d\n", score);
 
-    for (y = 0; y < config->height; y++) {
-        for (x = 0; x < config->width; x++) {
-            if (x == snakeX && y == snakeY)
+    for (y = 0; y < config.height; y++) {
+        for (x = 0; x < config.width; x++) {
+            if (x == snakeX && y == snakeY) {
                 printf("O ");
-            else if (x == foodX && y == foodY)
+            } else if (x == foodX && y == foodY) {
                 printf("* ");
-            else
+            } else {
                 printf(". ");
+            }
         }
-        printf("\n");
+        putchar('\n');
     }
 
-    printf("W=up A=left S=down D=right M=admin Q=quit\n");
+    puts("W=up A=left S=down D=right M=admin Q=quit");
 }
 
-/* Read one command; report end-of-input safely */
+/* Read and normalize one command */
 static int readCommand(char *input)
 {
-    int result = scanf(" %c", input);
-
-    if (result != 1) {
+    if (scanf(" %c", input) != 1) {
         return 0;
     }
 
@@ -160,12 +163,6 @@ int main(void)
 {
     char input;
 
-    const GameConfig config = {
-        WIDTH,
-        HEIGHT,
-        MAX_SCORE
-    };
-
     if (!isValidConfig(&config)) {
         fprintf(stderr, "Invalid game configuration.\n");
         return EXIT_FAILURE;
@@ -175,27 +172,27 @@ int main(void)
     snakeY = config.height / 2;
 
     srand((unsigned int)time(NULL));
-    placeFood(&config);
+    placeFood();
 
-    printf("=== Console Snake Game ===\n");
-    printf("Collect food (*) to earn points.\n");
+    puts("=== Console Snake Game ===");
+    puts("Collect food (*) to earn points.");
 
     while (!gameOver) {
-        drawBoard(&config);
+        drawBoard();
         printf("Enter command: ");
 
         if (!readCommand(&input)) {
-            printf("\nInput ended or could not be read. Exiting safely.\n");
+            puts("\nInput ended. Exiting safely.");
             break;
         }
 
         if (!isValidDirection(input)) {
-            printf("Invalid input. Use W, A, S, D, M or Q.\n");
+            puts("Invalid input. Use W, A, S, D, M or Q.");
             continue;
         }
 
         if (input == 'q') {
-            printf("Game ended by player.\n");
+            puts("Game ended by player.");
             break;
         }
 
@@ -206,7 +203,7 @@ int main(void)
 
         if (direction != ' ' &&
             isOppositeDirection(direction, input)) {
-            printf("Immediate reversal is not allowed.\n");
+            puts("Immediate reversal is not allowed.");
             continue;
         }
 
@@ -218,10 +215,9 @@ int main(void)
         else if (input == 'a') nextX--;
         else if (input == 'd') nextX++;
 
-        /* Check bounds before changing position */
         if (nextX < 0 || nextX >= config.width ||
             nextY < 0 || nextY >= config.height) {
-            printf("Game Over! You hit a wall.\n");
+            puts("Game Over! You hit a wall.");
             gameOver = 1;
             continue;
         }
@@ -231,15 +227,14 @@ int main(void)
         snakeY = nextY;
 
         if (snakeX == foodX && snakeY == foodY) {
-            awardFoodPoint(&config);
-            printf("Food collected!\n");
-            placeFood(&config);
+            awardFoodPoint();
+            puts("Food collected!");
+            placeFood();
         }
     }
 
     printf("\nFinal score: %d\n", score);
-    printf("Thanks for playing!\n");
+    puts("Thanks for playing!");
 
     return EXIT_SUCCESS;
 }
-```
