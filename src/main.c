@@ -51,6 +51,18 @@ static bool play_game(Difficulty difficulty) {
     }
 }
 
+static void start_new_game(Difficulty difficulty) {
+    GameState game;
+    initialize_game(&game, difficulty);
+
+    printf("\nNew game initialized!\n");
+    printf("Snake length: %d\n", game.length);
+    printf("Starting score: %d\n", game.score);
+    printf("Starting direction: Right\n");
+    printf("Board size: %d x %d\n",
+           BOARD_WIDTH, BOARD_HEIGHT);
+}
+
 
 int main(void) {
     Difficulty difficulty = EASY;
@@ -70,7 +82,8 @@ int main(void) {
             selected = (selected + 1) % 3;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
-                /* Start Game: connected in the gameplay implementation. */
+                start_new_game(difficulty);
+                Sleep(1500);
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
             } else if (selected == 2) {

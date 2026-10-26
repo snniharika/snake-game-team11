@@ -47,7 +47,7 @@ static void spawn_food(GameState *game) {
     }
 }
 
-/* SNK-F-003: Initialize the snake and score. */
+/* SNK-F-003: Initialize the board, snake, direction and score. */
 void initialize_game(GameState *game, Difficulty difficulty) {
     game->length = INITIAL_LENGTH;
     game->score = 0;
@@ -55,14 +55,16 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->difficulty = difficulty;
     game->game_over = false;
 
-    int cx = BOARD_WIDTH / 2;
-    int cy = BOARD_HEIGHT / 2;
+    int center_x = BOARD_WIDTH / 2;
+    int center_y = BOARD_HEIGHT / 2;
 
-    game->segments[0] = (Position){cx, cy};
-    game->segments[1] = (Position){cx - 1, cy};
-    game->segments[2] = (Position){cx - 2, cy};
+    game->segments[0] = (Position){center_x, center_y};
+    game->segments[1] = (Position){center_x - 1, center_y};
+    game->segments[2] = (Position){center_x - 2, center_y};
 
-    spawn_food(game);
+    /* Temporary food position; Issue 7 will implement safe spawning. */
+    game->food.x = BOARD_WIDTH / 2;
+    game->food.y = BOARD_HEIGHT / 2 - 2;
 }
 
 /* SNK-F-004: Ignore direct 180-degree reversals. */
