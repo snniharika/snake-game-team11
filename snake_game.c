@@ -1,105 +1,170 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <time.h>
 
 #define WIDTH 20
 #define HEIGHT 10
 
+#define INITIAL_SCORE 0
+#define MAX_SCORE 1000000
+
 int snakeX = WIDTH / 2;
 int snakeY = HEIGHT / 2;
-int foodX = 5;
-int foodY = 5;
-int score = 0;
 
-char direction = ' ';
+int foodX;
+int foodY;
+
+int score = INITIAL_SCORE;
 int gameOver = 0;
 
-/* Validate direction input */
-int isValidDirection(char input) {
+char direction = ' ';
+
+/* Validate allowed keyboard input */
+int isValidDirection(char input)
+{
     input = (char)tolower((unsigned char)input);
 
-    return input == 'w' || input == 'a' ||
-           input == 's' || input == 'd' ||
+    return input == 'w' ||
+           input == 'a' ||
+           input == 's' ||
+           input == 'd' ||
            input == 'q';
 }
 
-/* Prevent an immediate reverse in direction */
-int isOppositeDirection(char current, char next) {
+/* Prevent immediate reversal */
+int isOppositeDirection(char current, char next)
+{
     return (current == 'w' && next == 's') ||
            (current == 's' && next == 'w') ||
            (current == 'a' && next == 'd') ||
            (current == 'd' && next == 'a');
 }
 
-void drawBoard(void) {
+/* Generate food away from the snake's current position */
+void placeFood(void)
+{
+    do {
+        foodX = rand() % WIDTH;
+        foodY = rand() % HEIGHT;
+    } while (foodX == snakeX && foodY == snakeY);
+}
+
+/* Display the game board */
+void drawBoard(void)
+{
     int x, y;
 
     printf("\nScore: %d\n", score);
 
     for (y = 0; y < HEIGHT; y++) {
         for (x = 0; x < WIDTH; x++) {
-            if (x == snakeX && y == snakeY)
-                printf("O");
-            else if (x == foodX && y == foodY)
-                printf("*");
-            else
-                printf(".");
+            if (x == snakeX && y == snakeY) {
+                printf("O ");
+            } else if (x == foodX && y == foodY) {
+                printf("* ");
+            } else {
+                printf(". ");
+            }
         }
         printf("\n");
     }
 
-    printf("Move: W=up A=left S=down D=right, Q=quit\n");
+    printf("\nControls: W=up, A=left, S=down, D=right, Q=quit\n");
 }
 
-int main(void) {
+/* Read one character safely */
+int readInput(char *input)
+{
+    int result = scanf(" %c", input);
+
+    if (result != 1) {
+        return 0;
+    }
+
+    *input = (char)tolower((unsigned char)*input);
+    return 1;
+}
+
+/* Main game */
+int main(void)
+{
     char input;
 
-    printf("=== Snake Game ===\n");
+    srand((unsigned int)time(NULL));
+    placeFood();
+
+    printf("=== Console Snake Game ===\n");
+    printf("Collect food (*) to increase your score.\n");
 
     while (!gameOver) {
         drawBoard();
         printf("Enter direction: ");
 
-        if (scanf(" %c", &input) != 1) {
-            printf("Input error. Exiting game.\n");
+        if (!readInput(&input)) {
+            printf("\nInput error. Game ended safely.\n");
             break;
         }
 
-        input = (char)tolower((unsigned char)input);
-
+        /* Reject invalid input */
         if (!isValidDirection(input)) {
-            printf("Invalid input! Use W, A, S, D or Q.\n");
+            printf("Invalid input! Enter W, A, S, D or Q.\n");
             continue;
         }
 
+        /* Quit safely */
         if (input == 'q') {
             printf("Game ended. Final score: %d\n", score);
             break;
         }
 
+        /* Reject an immediate reverse */
         if (direction != ' ' &&
             isOppositeDirection(direction, input)) {
-            printf("Invalid move! You cannot reverse direction.\n");
+            printf("Invalid move! Immediate reversal is not allowed.\n");
             continue;
         }
 
         direction = input;
 
-        if (direction == 'w') snakeY--;
-        if (direction == 's') snakeY++;
-        if (direction == 'a') snakeX--;
-        if (direction == 'd') snakeX++;
+        /* Calculate the next position */
+        int nextX = snakeX;
+        int nextY = snakeY;
 
-        if (snakeX < 0 || snakeX >= WIDTH ||
-            snakeY < 0 || snakeY >= HEIGHT) {
-            printf("Game Over! Final score: %d\n", score);
+        if (direction == 'w') {
+            nextY--;
+        } else if (direction == 's') {
+            nextY++;
+        } else if (direction == 'a') {
+            nextX--;
+        } else if (direction == 'd') {
+            nextX++;
+        }
+
+        /* Check wall collision before updating position */
+        if (nextX < 0 || nextX >= WIDTH ||
+            nextY < 0 || nextY >= HEIGHT) {
+            printf("Game Over! You hit a wall.\n");
             gameOver = 1;
-        } else if (snakeX == foodX && snakeY == foodY) {
-            score++;
-            foodX = rand() % WIDTH;
-            foodY = rand() % HEIGHT;
+            continue;
+        }
+
+        snakeX = nextX;
+        snakeY = nextY;
+
+        /* Collect food and protect against score overflow */
+        if (snakeX == foodX && snakeY == foodY) {
+            if (score < MAX_SCORE) {
+                score++;
+            }
+
+            printf("Food collected! Score: %d\n", score);
+            placeFood();
         }
     }
+
+    printf("Final score: %d\n", score);
+    printf("Thank you for playing!\n");
 
     return 0;
 }
