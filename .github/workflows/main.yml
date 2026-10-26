@@ -1,0 +1,22 @@
+name: Compile Snake Game
+
+on:
+  push:
+    branches:
+      - main
+      - feature/snk-sr-001-input-validation
+  pull_request:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository code
+        uses: actions/checkout@v4
+
+      - name: Install C compiler
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Compile Snake Game
+        run: gcc -Wall -Wextra -std=c11 -o snake_game snake_game.c
