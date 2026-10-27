@@ -7,11 +7,12 @@ on:
       - feature/snk-sr-001-input-validation
       - feature/game-core
       - feature/pause-and-game-over
+      - admin-auth
   pull_request:
 
 jobs:
   compile:
-    # The game uses <windows.h> and <conio.h>, so it only builds on Windows.
+    # The game uses Windows APIs, so compile it on Windows.
     runs-on: windows-latest
 
     steps:
@@ -22,5 +23,5 @@ jobs:
         shell: bash
         run: |
           gcc -Wall -Wextra -pedantic -std=c11 -Iinclude \
-            src/main.c src/input.c src/game.c src/render.c \
-            -o snake_game.exe
+            src/main.c src/input.c src/game.c src/render.c src/admin.c \
+            -lbcrypt -o snake.exe
