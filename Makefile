@@ -1,6 +1,7 @@
 CC = gcc
 
 CFLAGS = -std=c11 -Wall -Wextra -pedantic -Iinclude
+
 LDFLAGS = -lbcrypt
 
 SOURCES = src/main.c src/input.c src/game.c src/render.c src/admin.c

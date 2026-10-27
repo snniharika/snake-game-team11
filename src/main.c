@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <windows.h>
+#include "admin.h"
+#include <conio.h>
+
+
+static void handle_admin_login(void);
 
 static int movement_delay(Difficulty difficulty) {
     switch (difficulty) {
@@ -64,18 +69,25 @@ int main(void) {
         Key key = read_key();
 
         if (key == KEY_UP) {
-            selected = (selected + 2) % 3;
+            selected = (selected + 3) % 4;
         } else if (key == KEY_DOWN) {
-            selected = (selected + 1) % 3;
+            selected = (selected + 1) % 4;
         } else if (key == KEY_QUIT) {
             running = false;
-        } else if (key == KEY_ENTER) {
+        } 
+        else if (key == KEY_ENTER) 
+        {
             if (selected == 0) {
                 running = play_game(difficulty);
-            } else if (selected == 1) {
+            } 
+            else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
-            } else {
-                running = false;
+            } 
+            else if (selected == 2) {
+                handle_admin_login();
+            } 
+            else {
+            running = false;
             }
         }
 
@@ -84,4 +96,123 @@ int main(void) {
 
     shutdown_input();
     return 0;
+}
+
+
+
+static bool read_admin_password(char *password, size_t capacity)
+{
+    if (password == NULL || capacity < 2) {
+        return false;
+    }
+
+    size_t length = 0;
+    int ch;
+
+    HANDLE console = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD original_mode;
+
+    if (console == INVALID_HANDLE_VALUE ||
+        !GetConsoleMode(console, &original_mode)) {
+        return false;
+    }
+
+    DWORD hidden_mode =
+        original_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+
+    if (!SetConsoleMode(console, hidden_mode)) {
+        return false;
+    }
+
+    printf("Enter Administrator password: ");
+    fflush(stdout);
+
+    bool valid = true;
+
+    while (1) {
+        ch = _getch();
+
+        if (ch == '\r' || ch == '\n') {
+            break;
+        }
+
+        if (ch == 3) {
+            valid = false;
+            break;
+        }
+
+        if (ch == '\b') {
+            if (length > 0) {
+                length--;
+            }
+            continue;
+        }
+
+        if (ch == 0 || ch == 224) {
+            (void)_getch();
+            continue;
+        }
+
+        if (ch < 32 || ch > 126) {
+            continue;
+        }
+
+        if (length >= capacity - 1) {
+            valid = false;
+            break;
+        }
+
+        password[length++] = (char)ch;
+    }
+
+    password[length] = '\0';
+
+    if (!SetConsoleMode(console, original_mode)) {
+        SecureZeroMemory(password, capacity);
+        return false;
+    }
+
+    putchar('\n');
+
+    if (!valid || length == 0) {
+        SecureZeroMemory(password, capacity);
+        return false;
+    }
+
+    return true;
+}
+
+
+
+
+static void handle_admin_login(void)
+{
+    char password[1025] = {0};
+
+    if (admin_is_authenticated()) {
+        printf("Administrator is already authenticated.\n");
+        printf("Press any key to return to the menu...\n");
+        (void)_getch();
+        return;
+    }
+
+    if (!read_admin_password(password, sizeof(password))) {
+        printf("Password input failed or was empty.\n");
+        printf("Press any key to return to the menu...\n");
+        (void)_getch();
+        return;
+    }
+
+    bool success = admin_authenticate(password);
+
+    SecureZeroMemory(password, sizeof(password));
+
+    if (success) {
+        printf("Administrator authentication successful.\n");
+    } else {
+        printf("Administrator authentication failed.\n");
+    }
+
+    printf("Press any key to return to the menu...\n");
+    (void)_getch();
 }

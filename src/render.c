@@ -11,15 +11,24 @@ void render_menu(int selected, Difficulty difficulty) {
 
     clear_screen();
 
-    printf("          SNAKE GAME\n");
+    printf("          SNAKE GAME\n\n");
 
-    printf("%s Start Game\n", selected == 0 ? "> " : "  ");
+    printf("%s Start Game\n",
+           selected == 0 ? "> " : "  ");
+
     printf("%s Difficulty: %s\n",
-           selected == 1 ? "> " : "  ", levels[difficulty]);
-    printf("%s Exit\n", selected == 2 ? "> " : "  ");
+           selected == 1 ? "> " : "  ",
+           levels[difficulty]);
+
+    printf("%s Administrator Login\n",
+           selected == 2 ? "> " : "  ");
+
+    printf("%s Exit\n",
+           selected == 3 ? "> " : "  ");
 
     printf("\nUse Up/Down and Enter to select.\n");
     printf("WASD also works. X exits.\n");
+
     fflush(stdout);
 }
 
