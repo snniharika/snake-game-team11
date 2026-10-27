@@ -1,6 +1,7 @@
 #include "snake.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <windows.h>
 
@@ -50,33 +51,46 @@ static bool play_game(Difficulty difficulty) {
     }
 }
 
-int main(void) {
-    srand((unsigned int)time(NULL));
+static void start_new_game(Difficulty difficulty) {
+    GameState game;
+    initialize_game(&game, difficulty);
 
+    printf("\nNew game initialized!\n");
+    printf("Snake length: %d\n", game.length);
+    printf("Starting score: %d\n", game.score);
+    printf("Starting direction: Right\n");
+    printf("Board size: %d x %d\n",
+           BOARD_WIDTH, BOARD_HEIGHT);
+}
+
+
+int main(void) {
+    Difficulty difficulty = EASY;
     initialize_input();
 
     int selected = 0;
-    Difficulty difficulty = EASY;
     bool running = true;
 
     while (running) {
         render_menu(selected, difficulty);
+
         Key key = read_key();
 
         if (key == KEY_UP) {
             selected = (selected + 2) % 3;
         } else if (key == KEY_DOWN) {
             selected = (selected + 1) % 3;
-        } else if (key == KEY_QUIT) {
-            running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
-                running = play_game(difficulty);
+                start_new_game(difficulty);
+                Sleep(1500);
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
-            } else {
+            } else if (selected == 2) {
                 running = false;
             }
+        } else if (key == KEY_QUIT) {
+            running = false;
         }
 
         Sleep(40);
@@ -85,3 +99,4 @@ int main(void) {
     shutdown_input();
     return 0;
 }
+
