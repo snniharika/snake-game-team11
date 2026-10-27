@@ -1,5 +1,44 @@
+
 #include "snake.h"
 #include <stdlib.h>
+
+/*
+ * SNK-SR-001: Validate game state before processing updates.
+ * Reject invalid values without changing the game.
+ */
+static bool valid_game_state(const GameState *game) {
+    if (game == NULL)
+        return false;
+
+    if (game->length < 1 ||
+        game->length > BOARD_WIDTH * BOARD_HEIGHT)
+        return false;
+
+    if (game->score < 0)
+        return false;
+
+    if (game->direction < DIR_UP ||
+        game->direction > DIR_RIGHT)
+        return false;
+
+    if (game->difficulty < EASY ||
+        game->difficulty > HARD)
+        return false;
+
+    if (game->food.x < 1 || game->food.x >= BOARD_WIDTH - 1 ||
+        game->food.y < 1 || game->food.y >= BOARD_HEIGHT - 1)
+        return false;
+
+    for (int i = 0; i < game->length; i++) {
+        if (game->segments[i].x < 1 ||
+            game->segments[i].x >= BOARD_WIDTH - 1 ||
+            game->segments[i].y < 1 ||
+            game->segments[i].y >= BOARD_HEIGHT - 1)
+            return false;
+    }
+
+    return true;
+}
 
 static bool same_position(Position a, Position b) {
     return a.x == b.x && a.y == b.y;
@@ -49,6 +88,9 @@ static void spawn_food(GameState *game) {
 
 /* SNK-F-003: Initialize the snake and score. */
 void initialize_game(GameState *game, Difficulty difficulty) {
+    if (game == NULL || difficulty < EASY || difficulty > HARD)
+        return;
+
     game->length = INITIAL_LENGTH;
     game->score = 0;
     game->direction = DIR_RIGHT;
@@ -67,6 +109,9 @@ void initialize_game(GameState *game, Difficulty difficulty) {
 
 /* SNK-F-004: Ignore direct 180-degree reversals. */
 void update_direction(GameState *game, Key key) {
+    if (!valid_game_state(game) || game->game_over)
+        return;
+
     Direction requested = game->direction;
 
     switch (key) {
@@ -74,7 +119,12 @@ void update_direction(GameState *game, Key key) {
         case KEY_DOWN:  requested = DIR_DOWN; break;
         case KEY_LEFT:  requested = DIR_LEFT; break;
         case KEY_RIGHT: requested = DIR_RIGHT; break;
-        default: return;
+        case KEY_NONE:
+        case KEY_ENTER:
+        case KEY_ESCAPE:
+        case KEY_QUIT:
+        default:
+            return;
     }
 
     bool opposite =
@@ -88,6 +138,9 @@ void update_direction(GameState *game, Key key) {
 }
 
 void update_game(GameState *game) {
+    if (!valid_game_state(game) || game->game_over)
+        return;
+
     Position next = game->segments[0];
 
     switch (game->direction) {
@@ -95,18 +148,20 @@ void update_game(GameState *game) {
         case DIR_DOWN:  next.y++; break;
         case DIR_LEFT:  next.x--; break;
         case DIR_RIGHT: next.x++; break;
+        default:
+            return;
     }
 
     bool eating = same_position(next, game->food);
 
-    // Keep the snake inside the board.
+    /* Keep the snake inside the board. */
     if (next.x <= 0 || next.x >= BOARD_WIDTH - 1 ||
         next.y <= 0 || next.y >= BOARD_HEIGHT - 1) {
         game->game_over = true;
         return;
     }
 
-    // The tail vacates its cell on a non-eating move.
+    /* The tail vacates its cell on a non-eating move. */
     int body_limit = eating ? game->length : game->length - 1;
 
     for (int i = 0; i < body_limit; i++) {
