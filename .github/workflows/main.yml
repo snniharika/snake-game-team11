@@ -19,4 +19,4 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc
 
       - name: Compile Snake Game
-        run: gcc -Wall -Wextra -std=c11 -o snake_game snake_game.c
+        run: gcc -Wall -Wextra -pedantic -std=c11 -Iinclude \ src/main.c src/input.c src/game.c src/render.c \ -o snake_game
