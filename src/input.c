@@ -2,8 +2,17 @@
 #include <conio.h>
 #include <windows.h>
 
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+
 void initialize_input(void) {
-    // No special initialization is needed for conio.h.
+    /* Make sure the console understands the ANSI clear-screen codes. */
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+
+    if (out != INVALID_HANDLE_VALUE && GetConsoleMode(out, &mode))
+        SetConsoleMode(out, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 }
 
 void shutdown_input(void) {
@@ -30,8 +39,9 @@ Key read_key(void) {
     }
 
     switch (ch) {
-        case 13: return KEY_ENTER;
+        case 13: case ' ': return KEY_ENTER;
         case 27: return KEY_ESCAPE;
+        case 'p': case 'P': return KEY_PAUSE;
         case 'w': case 'W': return KEY_UP;
         case 's': case 'S': return KEY_DOWN;
         case 'a': case 'A': return KEY_LEFT;

@@ -22,7 +22,7 @@ typedef enum {
 
 typedef enum {
     KEY_NONE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-    KEY_ENTER, KEY_ESCAPE, KEY_QUIT
+    KEY_ENTER, KEY_ESCAPE, KEY_PAUSE, KEY_QUIT
 } Key;
 
 typedef struct {
@@ -33,6 +33,7 @@ typedef struct {
     Difficulty difficulty;
     int score;
     bool game_over;
+    bool paused;
 } GameState;
 
 void initialize_input(void);
@@ -41,9 +42,12 @@ Key read_key(void);
 
 void render_menu(int selected, Difficulty difficulty);
 void render_game(const GameState *game);
+void render_pause_menu(const GameState *game, int selected);
+void render_game_over(const GameState *game, int selected);
 
 void initialize_game(GameState *game, Difficulty difficulty);
 void update_direction(GameState *game, Key key);
 void update_game(GameState *game);
+void set_paused(GameState *game, bool paused);
 
 #endif
