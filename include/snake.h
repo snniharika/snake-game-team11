@@ -22,7 +22,7 @@ typedef enum {
 
 typedef enum {
     KEY_NONE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-    KEY_ENTER, KEY_ESCAPE, KEY_QUIT
+    KEY_ENTER, KEY_ESCAPE, KEY_QUIT, KEY_PAUSE
 } Key;
 
 typedef struct {

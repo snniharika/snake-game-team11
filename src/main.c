@@ -1,16 +1,20 @@
+
 #include "snake.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <time.h>
 #include <windows.h>
 
 static int movement_delay(Difficulty difficulty) {
     switch (difficulty) {
-        case EASY:   return 220;
-        case MEDIUM: return 150;
-        case HARD:   return 90;
+        case EASY:
+            return 220;
+        case MEDIUM:
+            return 150;
+        case HARD:
+            return 90;
     }
+
     return 150;
 }
 
@@ -19,14 +23,38 @@ static bool play_game(Difficulty difficulty) {
     GameState game;
     initialize_game(&game, difficulty);
 
+    bool paused = false;
+
     while (!game.game_over) {
         Key key = read_key();
 
-        if (key == KEY_ESCAPE)
+        /* Return to the main menu. */
+        if (key == KEY_ESCAPE) {
             return true;
+        }
 
-        if (key == KEY_QUIT)
+        /* Exit the application. */
+        if (key == KEY_QUIT) {
             return false;
+        }
+
+        /* Toggle pause and resume using P. */
+        if (key == KEY_PAUSE) {
+            paused = !paused;
+            render_game(&game);
+
+            if (paused) {
+                printf("\nGAME PAUSED - Press P to resume, ESC for menu, X to exit.\n");
+            }
+
+            continue;
+        }
+
+        /* Do not move the snake while paused. */
+        if (paused) {
+            Sleep(100);
+            continue;
+        }
 
         update_direction(&game, key);
         update_game(&game);
@@ -38,31 +66,20 @@ static bool play_game(Difficulty difficulty) {
     printf("\nGAME OVER! Final score: %d\n", game.score);
     printf("Press Enter to return to menu, or X to exit.\n");
 
-    while (1) {
+    while (true) {
         Key key = read_key();
 
-        if (key == KEY_ENTER || key == KEY_ESCAPE)
+        if (key == KEY_ENTER || key == KEY_ESCAPE) {
             return true;
+        }
 
-        if (key == KEY_QUIT)
+        if (key == KEY_QUIT) {
             return false;
+        }
 
         Sleep(30);
     }
 }
-
-static void start_new_game(Difficulty difficulty) {
-    GameState game;
-    initialize_game(&game, difficulty);
-
-    printf("\nNew game initialized!\n");
-    printf("Snake length: %d\n", game.length);
-    printf("Starting score: %d\n", game.score);
-    printf("Starting direction: Right\n");
-    printf("Board size: %d x %d\n",
-           BOARD_WIDTH, BOARD_HEIGHT);
-}
-
 
 int main(void) {
     Difficulty difficulty = EASY;
@@ -82,8 +99,9 @@ int main(void) {
             selected = (selected + 1) % 3;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
-                start_new_game(difficulty);
-                Sleep(1500);
+                if (!play_game(difficulty)) {
+                    running = false;
+                }
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
             } else if (selected == 2) {
@@ -99,4 +117,3 @@ int main(void) {
     shutdown_input();
     return 0;
 }
-
