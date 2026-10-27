@@ -38,7 +38,42 @@ static bool play_game(Difficulty difficulty) {
          * Poll keyboard input frequently instead of waiting
          * for the next movement interval to finish.
          */
-        Key key = read_key();
+        Key key = KEY_NONE;
+
+/*
+ * Drain buffered keyboard input so recent input is processed
+ * without waiting for the next movement tick.
+ */
+while (1) {
+            Key next_key = read_key();
+
+            if (next_key == KEY_NONE) {
+                break;
+            }
+
+            /*
+             * Exit and menu commands should be handled immediately.
+             */
+            if (next_key == KEY_ESCAPE || next_key == KEY_QUIT) {
+                key = next_key;
+                break;
+            }
+
+            /*
+             * Keep the most recently read direction.
+             */
+            key = next_key;
+        }
+
+        if (key == KEY_ESCAPE) {
+            return true;
+        }
+
+        if (key == KEY_QUIT) {
+            return false;
+        }
+
+        update_direction(&game, key);
 
         if (key == KEY_ESCAPE)
             return true;
