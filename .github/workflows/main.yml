@@ -5,18 +5,22 @@ on:
     branches:
       - main
       - feature/snk-sr-001-input-validation
+      - feature/game-core
+      - feature/pause-and-game-over
   pull_request:
 
 jobs:
   compile:
-    runs-on: ubuntu-latest
+    # The game uses <windows.h> and <conio.h>, so it only builds on Windows.
+    runs-on: windows-latest
 
     steps:
       - name: Get repository code
         uses: actions/checkout@v4
 
-      - name: Install C compiler
-        run: sudo apt-get update && sudo apt-get install -y gcc
-
       - name: Compile Snake Game
-        run: gcc -Wall -Wextra -std=c11 -o snake_game snake_game.c
+        shell: bash
+        run: |
+          gcc -Wall -Wextra -pedantic -std=c11 -Iinclude \
+            src/main.c src/input.c src/game.c src/render.c \
+            -o snake_game.exe

@@ -23,6 +23,7 @@ mingw32-make
 ## Controls
 
 - Arrow keys or WASD: Move / navigate
-- Enter: Select
-- Escape: Return to menu during gameplay
+- Enter or Space: Select
+- Escape or P: Pause during gameplay (then Resume or return to the Main Menu)
+- Game Over screen: choose Restart or Exit (Escape returns to the Main Menu)
 - X: Exit
