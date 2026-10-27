@@ -18,12 +18,26 @@ static int movement_delay(Difficulty difficulty) {
     return 150;
 }
 
+
 /* Returns false when the player chooses to exit. */
 static bool play_game(Difficulty difficulty) {
     GameState game;
     initialize_game(&game, difficulty);
 
+    /*
+     * Render the initial board before the first movement.
+     * Input polling and snake movement use separate timings.
+     */
+    render_game(&game);
+
+    DWORD last_move = GetTickCount();
+    DWORD move_interval = (DWORD)movement_delay(difficulty);
+
     while (!game.game_over) {
+        /*
+         * Poll keyboard input frequently instead of waiting
+         * for the next movement interval to finish.
+         */
         Key key = read_key();
 
         if (key == KEY_ESCAPE)
@@ -32,11 +46,31 @@ static bool play_game(Difficulty difficulty) {
         if (key == KEY_QUIT)
             return false;
 
+        /*
+         * Register the requested direction immediately.
+         * update_direction() rejects illegal 180-degree turns.
+         */
         update_direction(&game, key);
-        update_game(&game);
-        render_game(&game);
 
-        Sleep(movement_delay(difficulty));
+        /*
+         * Move the snake only when its movement interval
+         * has elapsed. Polling more frequently must not
+         * increase the snake's movement speed.
+         */
+        DWORD now = GetTickCount();
+
+        if ((DWORD)(now - last_move) >= move_interval) {
+            update_game(&game);
+            render_game(&game);
+
+            last_move = now;
+        }
+
+        /*
+         * Short sleep prevents unnecessary CPU usage while
+         * keeping keyboard polling responsive.
+         */
+        Sleep(5);
     }
 
     printf("\nGAME OVER! Final score: %d\n", game.score);
@@ -51,7 +85,7 @@ static bool play_game(Difficulty difficulty) {
         if (key == KEY_QUIT)
             return false;
 
-        Sleep(30);
+        Sleep(5);
     }
 }
 
@@ -60,39 +94,58 @@ int main(void) {
 
     initialize_input();
 
+
     int selected = 0;
     Difficulty difficulty = EASY;
     bool running = true;
+    bool menu_needs_redraw = true;
 
     while (running) {
-        render_menu(selected, difficulty);
+    /*
+     * Redraw the menu only when its visible state changes.
+     */
+        if (menu_needs_redraw) {
+            render_menu(selected, difficulty);
+            menu_needs_redraw = false;
+        }
+
         Key key = read_key();
 
         if (key == KEY_UP) {
             selected = (selected + 3) % 4;
-        } else if (key == KEY_DOWN) {
+            menu_needs_redraw = true;
+        }
+        else if (key == KEY_DOWN) {
             selected = (selected + 1) % 4;
-        } else if (key == KEY_QUIT) {
+            menu_needs_redraw = true;
+        }
+        else if (key == KEY_QUIT) {
             running = false;
-        } 
-        else if (key == KEY_ENTER) 
-        {
+        }
+        else if (key == KEY_ENTER) {
             if (selected == 0) {
                 running = play_game(difficulty);
-            } 
+                menu_needs_redraw = true;
+            }
             else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
-            } 
+                menu_needs_redraw = true;
+            }
             else if (selected == 2) {
                 handle_admin_login();
-            } 
+                menu_needs_redraw = true;
+            }
             else {
-            running = false;
+                running = false;
             }
         }
 
-        Sleep(40);
-    }
+    /*
+     * Poll frequently without continuously redrawing
+     * an unchanged menu.
+     */
+    Sleep(5);
+}
 
     shutdown_input();
     return 0;
