@@ -1,0 +1,25 @@
+# Local administrator credentials
+config/admin_credentials.conf
+
+# Compiled executables
+*.exe
+*.out
+
+# Object files
+*.o
+*.obj
+
+# Debug symbols
+*.pdb
+
+# IDE settings
+.vscode/
+
+# Temporary files
+*.tmp
+*.log
+
+
+
+# Generated executable
+snake.exe
