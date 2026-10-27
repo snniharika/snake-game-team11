@@ -11,7 +11,7 @@ on:
 
 jobs:
   compile:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Get repository code
@@ -21,7 +21,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc
 
       - name: Compile Snake Game
-        shell: bash
         run: |
           gcc -Wall -Wextra -pedantic -std=c11 -Iinclude \
             src/main.c src/input.c src/game.c src/render.c \

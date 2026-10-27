@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
-#include <windows.h>
 
 static int movement_delay(Difficulty difficulty) {
     switch (difficulty) {
@@ -47,7 +46,6 @@ static bool play_game(Difficulty difficulty) {
         if (key == KEY_QUIT)
             return false;
 
-        Sleep(30);
     }
 }
 
@@ -83,7 +81,6 @@ int main(void) {
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
                 start_new_game(difficulty);
-                Sleep(1500);
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
             } else if (selected == 2) {
@@ -93,7 +90,6 @@ int main(void) {
             running = false;
         }
 
-        Sleep(40);
     }
 
     shutdown_input();
