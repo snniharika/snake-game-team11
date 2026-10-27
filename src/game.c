@@ -4,7 +4,6 @@
 
 /*
  * SNK-SR-001: Validate game state before processing updates.
- * Reject invalid values without changing the game.
  */
 static bool valid_game_state(const GameState *game) {
     if (game == NULL)
@@ -137,6 +136,11 @@ void update_direction(GameState *game, Key key) {
         game->direction = requested;
 }
 
+/*
+ * SNK-SR-002: Keep score changes inside the validated game-update
+ * flow. A point is awarded only when the snake reaches the food.
+ * No public function accepts an arbitrary score value.
+ */
 void update_game(GameState *game) {
     if (!valid_game_state(game) || game->game_over)
         return;
@@ -154,14 +158,12 @@ void update_game(GameState *game) {
 
     bool eating = same_position(next, game->food);
 
-    /* Keep the snake inside the board. */
     if (next.x <= 0 || next.x >= BOARD_WIDTH - 1 ||
         next.y <= 0 || next.y >= BOARD_HEIGHT - 1) {
         game->game_over = true;
         return;
     }
 
-    /* The tail vacates its cell on a non-eating move. */
     int body_limit = eating ? game->length : game->length - 1;
 
     for (int i = 0; i < body_limit; i++) {
@@ -185,6 +187,11 @@ void update_game(GameState *game) {
     game->segments[0] = next;
 
     if (eating) {
+        if (game->score < 0 || game->score == 2147483647) {
+            game->game_over = true;
+            return;
+        }
+
         game->score++;
         spawn_food(game);
     }
