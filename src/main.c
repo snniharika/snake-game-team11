@@ -13,40 +13,101 @@ static int movement_delay(Difficulty difficulty) {
     return 150;
 }
 
-/* Returns false when the player chooses to exit. */
-static bool play_game(Difficulty difficulty) {
-    GameState game;
-    initialize_game(&game, difficulty);
+typedef enum { AFTER_RESUME, AFTER_MENU, AFTER_EXIT } PauseResult;
 
-    while (!game.game_over) {
-        Key key = read_key();
+/* SNK-F-013: Freeze the game and let the player resume or leave.
+ * The GameState is never modified while paused, so resuming continues from
+ * exactly the same snake position, food and score. */
+static PauseResult run_pause_menu(GameState *game) {
+    int selected = 0;
 
-        if (key == KEY_ESCAPE)
-            return true;
-
-        if (key == KEY_QUIT)
-            return false;
-
-        update_direction(&game, key);
-        update_game(&game);
-        render_game(&game);
-
-        Sleep(movement_delay(difficulty));
-    }
-
-    printf("\nGAME OVER! Final score: %d\n", game.score);
-    printf("Press Enter to return to menu, or X to exit.\n");
+    set_paused(game, true);
+    render_pause_menu(game, selected);
 
     while (1) {
         Key key = read_key();
 
-        if (key == KEY_ENTER || key == KEY_ESCAPE)
-            return true;
-
-        if (key == KEY_QUIT)
-            return false;
+        if (key == KEY_UP || key == KEY_DOWN) {
+            selected = 1 - selected;
+            render_pause_menu(game, selected);
+        } else if (key == KEY_ESCAPE || key == KEY_PAUSE ||
+                   (key == KEY_ENTER && selected == 0)) {
+            set_paused(game, false);
+            render_game(game);
+            return AFTER_RESUME;
+        } else if (key == KEY_ENTER) {
+            return AFTER_MENU;
+        } else if (key == KEY_QUIT) {
+            return AFTER_EXIT;
+        }
 
         Sleep(30);
+    }
+}
+
+typedef enum { OVER_RESTART, OVER_MENU, OVER_EXIT } GameOverResult;
+
+/* SNK-F-010 / SNK-F-012: Show the final score with Restart and Exit. */
+static GameOverResult run_game_over_menu(const GameState *game) {
+    int selected = 0;   /* Restart is the highlighted default. */
+
+    render_game_over(game, selected);
+
+    while (1) {
+        Key key = read_key();
+
+        if (key == KEY_UP || key == KEY_DOWN) {
+            selected = 1 - selected;
+            render_game_over(game, selected);
+        } else if (key == KEY_ENTER) {
+            return selected == 0 ? OVER_RESTART : OVER_EXIT;
+        } else if (key == KEY_ESCAPE) {
+            return OVER_MENU;
+        } else if (key == KEY_QUIT) {
+            return OVER_EXIT;
+        }
+
+        Sleep(30);
+    }
+}
+
+/* Returns true to go back to the main menu, false when the player exits. */
+static bool play_game(Difficulty difficulty) {
+    while (1) {
+        GameState game;
+        initialize_game(&game, difficulty);
+        render_game(&game);
+
+        while (!game.game_over) {
+            Key key = read_key();
+
+            if (key == KEY_QUIT)
+                return false;
+
+            if (key == KEY_ESCAPE || key == KEY_PAUSE) {
+                PauseResult paused = run_pause_menu(&game);
+
+                if (paused == AFTER_MENU)
+                    return true;
+                if (paused == AFTER_EXIT)
+                    return false;
+                continue;
+            }
+
+            update_direction(&game, key);
+            update_game(&game);
+            render_game(&game);
+
+            Sleep(movement_delay(difficulty));
+        }
+
+        GameOverResult over = run_game_over_menu(&game);
+
+        if (over == OVER_MENU)
+            return true;
+        if (over == OVER_EXIT)
+            return false;
+        /* OVER_RESTART: loop around with a fresh game. */
     }
 }
 
@@ -59,9 +120,20 @@ int main(void) {
     Difficulty difficulty = EASY;
     bool running = true;
 
+    bool redraw = true;
+
     while (running) {
-        render_menu(selected, difficulty);
+        /* Only redraw when something changed, otherwise the terminal
+         * fills up with repeated copies of the menu. */
+        if (redraw) {
+            render_menu(selected, difficulty);
+            redraw = false;
+        }
+
         Key key = read_key();
+
+        if (key != KEY_NONE)
+            redraw = true;
 
         if (key == KEY_UP) {
             selected = (selected + 2) % 3;
