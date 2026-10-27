@@ -30,13 +30,34 @@ Key read_key(void) {
     }
 
     switch (ch) {
-        case 13: return KEY_ENTER;
-        case 27: return KEY_ESCAPE;
-        case 'w': case 'W': return KEY_UP;
-        case 's': case 'S': return KEY_DOWN;
-        case 'a': case 'A': return KEY_LEFT;
-        case 'd': case 'D': return KEY_RIGHT;
-        case 'x': case 'X': return KEY_QUIT;
-        default: return KEY_NONE;
+        case 13:
+        case ' ':
+            return KEY_ENTER;
+
+        case 27:
+            return KEY_ESCAPE;
+
+        case 'w':
+        case 'W':
+            return KEY_UP;
+
+        case 's':
+        case 'S':
+            return KEY_DOWN;
+
+        case 'a':
+        case 'A':
+            return KEY_LEFT;
+
+        case 'd':
+        case 'D':
+            return KEY_RIGHT;
+
+        case 'x':
+        case 'X':
+            return KEY_QUIT;
+
+        default:
+            return KEY_NONE;
     }
 }

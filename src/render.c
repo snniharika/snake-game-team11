@@ -26,7 +26,7 @@ void render_menu(int selected, Difficulty difficulty) {
     printf("%s Exit\n",
            selected == 3 ? "> " : "  ");
 
-    printf("\nUse Up/Down and Enter to select.\n");
+    printf("\nUse Up/Down and Enter/Space to select.\n");
     printf("WASD also works. X exits.\n");
 
     fflush(stdout);
