@@ -63,8 +63,7 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->segments[2] = (Position){center_x - 2, center_y};
 
     /* Temporary food position; Issue 7 will implement safe spawning. */
-    game->food.x = BOARD_WIDTH / 2;
-    game->food.y = BOARD_HEIGHT / 2 - 2;
+    spawn_food(game);
 }
 
 /* SNK-F-004: Ignore direct 180-degree reversals. */

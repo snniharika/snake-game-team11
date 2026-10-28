@@ -59,6 +59,7 @@ static void start_new_game(Difficulty difficulty) {
     printf("Starting direction: Right\n");
     printf("Board size: %d x %d\n",
            BOARD_WIDTH, BOARD_HEIGHT);
+    play_game(difficulty);
 }
 
 
