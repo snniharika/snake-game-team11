@@ -54,6 +54,7 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->direction = DIR_RIGHT;
     game->difficulty = difficulty;
     game->game_over = false;
+    game->paused = false;
 
     int center_x = BOARD_WIDTH / 2;
     int center_y = BOARD_HEIGHT / 2;
@@ -69,6 +70,9 @@ void initialize_game(GameState *game, Difficulty difficulty) {
 /* SNK-F-004: Ignore direct 180-degree reversals. */
 void update_direction(GameState *game, Key key) {
     Direction new_direction = game->direction;
+    /* SNK-F-013: Direction input is ignored while paused. */
+    if (game->paused)
+        return;
 
     switch (key) {
         case KEY_UP:
@@ -98,7 +102,17 @@ void update_direction(GameState *game, Key key) {
     game->direction = new_direction;
 }
 
+/* SNK-F-013: Pausing freezes every field of the game state; resuming
+ * simply clears the flag so play continues from the same snake position. */
+void set_paused(GameState *game, bool paused) {
+    if (!game->game_over)
+        game->paused = paused;
+}
+
 void update_game(GameState *game) {
+    if (game->paused || game->game_over)
+        return;
+
     Position next = game->segments[0];
 
     switch (game->direction) {
