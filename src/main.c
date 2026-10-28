@@ -2,7 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
 #include <time.h>
+#include <windows.h>
+#include <conio.h>
+#include "admin.h"
 
 static int movement_delay(Difficulty difficulty) {
     switch (difficulty) {
@@ -166,64 +172,32 @@ static bool play_game(Difficulty difficulty) {
     }
 }
 
-static void start_new_game(Difficulty difficulty) {
-    GameState game;
-    initialize_game(&game, difficulty);
-
-    printf("\nNew game initialized!\n");
-    printf("Snake length: %d\n", game.length);
-    printf("Starting score: %d\n", game.score);
-    printf("Starting direction: Right\n");
-    printf("Board size: %d x %d\n",
-           BOARD_WIDTH, BOARD_HEIGHT);
-    play_game(difficulty);
-}
+static void handle_admin_login(void);
 
 
 int main(void) {
     Difficulty difficulty = EASY;
-    initialize_input();
-
     int selected = 0;
     bool running = true;
-    bool menu_needs_redraw = true;
+
+    initialize_input();
 
     while (running) {
-        /*
-         * Redraw only when the visible menu state changes.
-         */
-        if (menu_needs_redraw) {
-            render_menu(selected, difficulty);
-            menu_needs_redraw = false;
-        }
+        render_menu(selected, difficulty);
 
         Key key = read_key();
 
         if (key == KEY_UP) {
             selected = (selected + 3) % 4;
-            menu_needs_redraw = true;
         } else if (key == KEY_DOWN) {
-            selected = (selected + 1) % 3;
-        } else if (key == KEY_ENTER) {
-            if (selected == 0) {
-                start_new_game(difficulty);
-            } else if (selected == 1) {
-                difficulty = (Difficulty)((difficulty + 1) % 3);
-            } else if (selected == 2) {
             selected = (selected + 1) % 4;
-            menu_needs_redraw = true;
-        } else if (key == KEY_QUIT) {
-            running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
                 running = play_game(difficulty);
-                menu_needs_redraw = true;
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
-                menu_needs_redraw = true;
             } else if (selected == 2) {
                 handle_admin_login();
-                menu_needs_redraw = true;
             } else {
                 running = false;
             }
@@ -231,10 +205,6 @@ int main(void) {
             running = false;
         }
 
-        /*
-         * Poll frequently without continuously redrawing
-         * an unchanged menu.
-         */
         Sleep(5);
     }
 

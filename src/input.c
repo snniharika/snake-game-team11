@@ -1,127 +1,41 @@
 #include "snake.h"
-#include <stdio.h>
-#include <unistd.h>
-#include <termios.h>
-#include <sys/select.h>
-#include <ctype.h>
-
-static struct termios original_terminal;
-static int terminal_initialized = 0;
-
-#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
-#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-#endif
+#include <conio.h>
 
 void initialize_input(void) {
-    struct termios raw;
-
-    if (tcgetattr(STDIN_FILENO, &original_terminal) == -1)
-        return;
-
-    raw = original_terminal;
-    raw.c_lflag &= ~(ICANON | ECHO);
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 0;
-
-    if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) == 0)
-        terminal_initialized = 1;
-    /* Make sure the console understands the ANSI clear-screen codes. */
-    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD mode = 0;
-
-    if (out != INVALID_HANDLE_VALUE && GetConsoleMode(out, &mode))
-        SetConsoleMode(out, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    /* No terminal setup needed on Windows. */
 }
 
 void shutdown_input(void) {
-    if (terminal_initialized) {
-        tcsetattr(STDIN_FILENO, TCSANOW, &original_terminal);
-        terminal_initialized = 0;
-    }
-}
-
-static int key_available(int timeout_us) {
-    fd_set set;
-    struct timeval timeout = {0, timeout_us};
-
-    FD_ZERO(&set);
-    FD_SET(STDIN_FILENO, &set);
-    return select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout) > 0;
+    /* No terminal restoration needed on Windows. */
 }
 
 Key read_key(void) {
-    unsigned char ch;
-
-    if (!key_available(0))
+    if (!_kbhit()) {
         return KEY_NONE;
+    }
 
-    if (read(STDIN_FILENO, &ch, 1) != 1)
-        return KEY_NONE;
+    int ch = _getch();
 
-    if (ch == 27) {
-        if (!key_available(20000))
-            return KEY_ESCAPE;
-
-        unsigned char seq[2];
-        if (read(STDIN_FILENO, &seq[0], 1) != 1 ||
-            seq[0] != '[')
-            return KEY_ESCAPE;
-
-        if (read(STDIN_FILENO, &seq[1], 1) != 1)
-            return KEY_ESCAPE;
-
-        switch (seq[1]) {
-            case 'A': return KEY_UP;
-            case 'B': return KEY_DOWN;
-            case 'C': return KEY_RIGHT;
-            case 'D': return KEY_LEFT;
+    /* Handle arrow keys. */
+    if (ch == 0 || ch == 224) {
+        switch (_getch()) {
+            case 72: return KEY_UP;
+            case 80: return KEY_DOWN;
+            case 75: return KEY_LEFT;
+            case 77: return KEY_RIGHT;
             default: return KEY_NONE;
         }
     }
 
-    switch (tolower(ch)) {
-        case 'w': return KEY_UP;
-        case 's': return KEY_DOWN;
-        case 'a': return KEY_LEFT;
-        case 'd': return KEY_RIGHT;
-        case '\r':
-        case '\n': return KEY_ENTER;
-        case 'x': return KEY_QUIT;
+    switch (ch) {
+        case 'w': case 'W': return KEY_UP;
+        case 's': case 'S': return KEY_DOWN;
+        case 'a': case 'A': return KEY_LEFT;
+        case 'd': case 'D': return KEY_RIGHT;
+        case '\r': return KEY_ENTER;
+        case 27: return KEY_ESCAPE;
+        case 'x': case 'X': return KEY_QUIT;
+        case 'p': case 'P': return KEY_PAUSE;
         default: return KEY_NONE;
     }
-    switch (ch) {
-    case 13:
-    case ' ':
-        return KEY_ENTER;
-
-    case 27:
-        return KEY_ESCAPE;
-
-    case 'p':
-    case 'P':
-        return KEY_PAUSE;
-
-    case 'w':
-    case 'W':
-        return KEY_UP;
-
-    case 's':
-    case 'S':
-        return KEY_DOWN;
-
-    case 'a':
-    case 'A':
-        return KEY_LEFT;
-
-    case 'd':
-    case 'D':
-        return KEY_RIGHT;
-
-    case 'x':
-    case 'X':
-        return KEY_QUIT;
-
-    default:
-        return KEY_NONE;
-}
 }

@@ -11,8 +11,6 @@ static const char *difficulty_name(Difficulty difficulty) {
            difficulty == MEDIUM ? "Medium" : "Hard";
 }
 
-
-
 void render_menu(int selected, Difficulty difficulty) {
     const char *levels[] = {"Easy", "Medium", "Hard"};
     const char *options[] = {
@@ -35,38 +33,6 @@ void render_menu(int selected, Difficulty difficulty) {
     }
 
     printf("\nUse UP/DOWN arrows and ENTER.\n");
-    fflush(stdout);
-}
-
-
-void render_game(const GameState *game) {
-    clear_screen();
-
-    printf("Score: %d | Difficulty: %s\n",
-           game->score,
-           game->difficulty == EASY ? "Easy" :
-           game->difficulty == MEDIUM ? "Medium" : "Hard");
-
-    clear_screen();
-
-    printf("          SNAKE GAME\n\n");
-
-    printf("%s Start Game\n",
-           selected == 0 ? "> " : "  ");
-
-    printf("%s Difficulty: %s\n",
-           selected == 1 ? "> " : "  ",
-           levels[difficulty]);
-
-    printf("%s Administrator Login\n",
-           selected == 2 ? "> " : "  ");
-
-    printf("%s Exit\n",
-           selected == 3 ? "> " : "  ");
-
-    printf("\nUse Up/Down and Enter/Space to select.\n");
-    printf("WASD also works. X exits.\n");
-
     fflush(stdout);
 }
 
