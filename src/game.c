@@ -1,3 +1,4 @@
+
 #include "snake.h"
 #include <stdlib.h>
 
@@ -6,20 +7,28 @@ static bool same_position(Position a, Position b) {
 }
 
 static bool snake_occupies(const GameState *game, Position p) {
+    if (game == NULL)
+        return false;
+
     for (int i = 0; i < game->length; i++) {
         if (same_position(game->segments[i], p))
             return true;
     }
+
     return false;
 }
 
 /* SNK-F-007: Place food only on an unoccupied interior cell. */
 static void spawn_food(GameState *game) {
+    if (game == NULL)
+        return;
+
     int free_count = 0;
 
     for (int y = 1; y < BOARD_HEIGHT - 1; y++) {
         for (int x = 1; x < BOARD_WIDTH - 1; x++) {
             Position p = {x, y};
+
             if (!snake_occupies(game, p))
                 free_count++;
         }
@@ -49,6 +58,9 @@ static void spawn_food(GameState *game) {
 
 /* SNK-F-003: Initialize the snake and score. */
 void initialize_game(GameState *game, Difficulty difficulty) {
+    if (game == NULL)
+        return;
+
     game->length = INITIAL_LENGTH;
     game->score = 0;
     game->direction = DIR_RIGHT;
@@ -68,8 +80,7 @@ void initialize_game(GameState *game, Difficulty difficulty) {
 
 /* SNK-F-004: Ignore direct 180-degree reversals. */
 void update_direction(GameState *game, Key key) {
-    /* SNK-F-013: Direction input is ignored while paused. */
-    if (game->paused)
+    if (game == NULL || game->paused || game->game_over)
         return;
 
     Direction requested = game->direction;
@@ -92,16 +103,24 @@ void update_direction(GameState *game, Key key) {
         game->direction = requested;
 }
 
-/* SNK-F-013: Pausing freezes every field of the game state; resuming
- * simply clears the flag so play continues from the same snake position. */
+/* SNK-F-013: Pause or resume only an active game. */
 void set_paused(GameState *game, bool paused) {
-    if (!game->game_over)
-        game->paused = paused;
+    if (game == NULL || game->game_over)
+        return;
+
+    game->paused = paused;
 }
 
 void update_game(GameState *game) {
-    if (game->paused || game->game_over)
+    if (game == NULL || game->paused || game->game_over)
         return;
+
+    /* Reject invalid lengths before accessing the segment array. */
+    if (game->length < 1 ||
+        game->length > BOARD_WIDTH * BOARD_HEIGHT - 4) {
+        game->game_over = true;
+        return;
+    }
 
     Position next = game->segments[0];
 
@@ -110,18 +129,21 @@ void update_game(GameState *game) {
         case DIR_DOWN:  next.y++; break;
         case DIR_LEFT:  next.x--; break;
         case DIR_RIGHT: next.x++; break;
+        default:
+            game->game_over = true;
+            return;
     }
 
     bool eating = same_position(next, game->food);
 
-    // Keep the snake inside the board.
+    /* Keep the snake inside the board. */
     if (next.x <= 0 || next.x >= BOARD_WIDTH - 1 ||
         next.y <= 0 || next.y >= BOARD_HEIGHT - 1) {
         game->game_over = true;
         return;
     }
 
-    // The tail vacates its cell on a non-eating move.
+    /* The tail vacates its cell on a non-eating move. */
     int body_limit = eating ? game->length : game->length - 1;
 
     for (int i = 0; i < body_limit; i++) {
@@ -145,6 +167,11 @@ void update_game(GameState *game) {
     game->segments[0] = next;
 
     if (eating) {
+        if (game->score < 0 || game->score == 2147483647) {
+            game->game_over = true;
+            return;
+        }
+
         game->score++;
         spawn_food(game);
     }
