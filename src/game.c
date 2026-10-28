@@ -1,6 +1,7 @@
 
 #include "snake.h"
 #include <stdlib.h>
+#include <limits.h>
 
 static bool same_position(Position a, Position b) {
     return a.x == b.x && a.y == b.y;
@@ -167,7 +168,7 @@ void update_game(GameState *game) {
     game->segments[0] = next;
 
     if (eating) {
-        if (game->score < 0 || game->score == 2147483647) {
+        if (game->score < 0 || game->score == INT_MAX) {
             game->game_over = true;
             return;
         }
