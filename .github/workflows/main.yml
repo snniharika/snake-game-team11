@@ -1,4 +1,3 @@
-
 name: Compile Snake Game
 
 on:
@@ -7,21 +6,22 @@ on:
       - main
       - feature/snk-sr-001-input-validation
       - feature/game-core
+      - feature/pause-and-game-over
+      - admin-auth
   pull_request:
 
 jobs:
   compile:
-    runs-on: ubuntu-latest
+    # The game uses Windows APIs, so compile it on Windows.
+    runs-on: windows-latest
 
     steps:
       - name: Get repository code
         uses: actions/checkout@v4
 
-      - name: Install C compiler
-        run: sudo apt-get update && sudo apt-get install -y gcc
-
       - name: Compile Snake Game
+        shell: bash
         run: |
           gcc -Wall -Wextra -pedantic -std=c11 -Iinclude \
-            src/main.c src/input.c src/game.c src/render.c \
-            -o snake_game
+            src/main.c src/input.c src/game.c src/render.c src/admin.c \
+            -lbcrypt -o snake.exe

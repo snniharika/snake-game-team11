@@ -8,7 +8,8 @@ static bool same_position(Position a, Position b) {
 }
 
 static bool snake_occupies(const GameState *game, Position p) {
-    if (game == NULL)
+    if (game == NULL || game->length < 0 ||
+        game->length > BOARD_WIDTH * BOARD_HEIGHT)
         return false;
 
     for (int i = 0; i < game->length; i++) {
@@ -29,7 +30,6 @@ static void spawn_food(GameState *game) {
     for (int y = 1; y < BOARD_HEIGHT - 1; y++) {
         for (int x = 1; x < BOARD_WIDTH - 1; x++) {
             Position p = {x, y};
-
             if (!snake_occupies(game, p))
                 free_count++;
         }
@@ -61,6 +61,9 @@ static void spawn_food(GameState *game) {
 void initialize_game(GameState *game, Difficulty difficulty) {
     if (game == NULL)
         return;
+
+    if (difficulty < EASY || difficulty > HARD)
+        difficulty = EASY;
 
     game->length = INITIAL_LENGTH;
     game->score = 0;
@@ -116,9 +119,13 @@ void update_game(GameState *game) {
     if (game == NULL || game->paused || game->game_over)
         return;
 
-    /* Reject invalid lengths before accessing the segment array. */
     if (game->length < 1 ||
         game->length > BOARD_WIDTH * BOARD_HEIGHT - 4) {
+        game->game_over = true;
+        return;
+    }
+
+    if (game->score < 0) {
         game->game_over = true;
         return;
     }
@@ -137,14 +144,12 @@ void update_game(GameState *game) {
 
     bool eating = same_position(next, game->food);
 
-    /* Keep the snake inside the board. */
     if (next.x <= 0 || next.x >= BOARD_WIDTH - 1 ||
         next.y <= 0 || next.y >= BOARD_HEIGHT - 1) {
         game->game_over = true;
         return;
     }
 
-    /* The tail vacates its cell on a non-eating move. */
     int body_limit = eating ? game->length : game->length - 1;
 
     for (int i = 0; i < body_limit; i++) {
@@ -154,7 +159,9 @@ void update_game(GameState *game) {
         }
     }
 
-    if (eating && game->length >= BOARD_WIDTH * BOARD_HEIGHT - 4) {
+    if (eating &&
+        (game->length >= BOARD_WIDTH * BOARD_HEIGHT - 4 ||
+         game->score == INT_MAX)) {
         game->game_over = true;
         return;
     }
@@ -168,11 +175,6 @@ void update_game(GameState *game) {
     game->segments[0] = next;
 
     if (eating) {
-        if (game->score < 0 || game->score == INT_MAX) {
-            game->game_over = true;
-            return;
-        }
-
         game->score++;
         spawn_food(game);
     }
