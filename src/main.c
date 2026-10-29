@@ -1,14 +1,12 @@
 #include "snake.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
 #include <time.h>
 #include <windows.h>
-#include <conio.h>
 #include "admin.h"
+#include <conio.h>
+
+static void handle_admin_login(void);
 
 static int movement_delay(Difficulty difficulty) {
     switch (difficulty) {
@@ -172,39 +170,54 @@ static bool play_game(Difficulty difficulty) {
     }
 }
 
-static void handle_admin_login(void);
-
-
 int main(void) {
-    Difficulty difficulty = EASY;
-    int selected = 0;
-    bool running = true;
+    srand((unsigned int)time(NULL));
 
     initialize_input();
 
+    int selected = 0;
+    Difficulty difficulty = EASY;
+    bool running = true;
+    bool menu_needs_redraw = true;
+
     while (running) {
-        render_menu(selected, difficulty);
+        /*
+         * Redraw only when the visible menu state changes.
+         */
+        if (menu_needs_redraw) {
+            render_menu(selected, difficulty);
+            menu_needs_redraw = false;
+        }
 
         Key key = read_key();
 
         if (key == KEY_UP) {
             selected = (selected + 3) % 4;
+            menu_needs_redraw = true;
         } else if (key == KEY_DOWN) {
             selected = (selected + 1) % 4;
+            menu_needs_redraw = true;
+        } else if (key == KEY_QUIT) {
+            running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
                 running = play_game(difficulty);
+                menu_needs_redraw = true;
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
+                menu_needs_redraw = true;
             } else if (selected == 2) {
                 handle_admin_login();
+                menu_needs_redraw = true;
             } else {
                 running = false;
             }
-        } else if (key == KEY_QUIT) {
-            running = false;
         }
 
+        /*
+         * Poll frequently without continuously redrawing
+         * an unchanged menu.
+         */
         Sleep(5);
     }
 
