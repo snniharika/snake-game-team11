@@ -1,5 +1,6 @@
 #include "snake.h"
 #include <stdio.h>
+#include <windows.h>
 
 static void clear_screen(void) {
     /* Clear the screen and the scrollback, then move the cursor home. */
@@ -13,26 +14,27 @@ static const char *difficulty_name(Difficulty difficulty) {
 
 void render_menu(int selected, Difficulty difficulty) {
     const char *levels[] = {"Easy", "Medium", "Hard"};
-    const char *options[] = {
-        "Start Game",
-        "Difficulty Select",
-        "Exit"
-    };
 
-    printf("\033[2J\033[H");
-    printf("          SNAKE GAME\n");
+    clear_screen();
 
-    for (int i = 0; i < 3; i++) {
-        printf("%s ", selected == i ? ">" : " ");
+    printf("          SNAKE GAME\n\n");
 
-        if (i == 1) {
-            printf("%s: %s\n", options[i], levels[difficulty]);
-        } else {
-            printf("%s\n", options[i]);
-        }
-    }
+    printf("%s Start Game\n",
+           selected == 0 ? "> " : "  ");
 
-    printf("\nUse UP/DOWN arrows and ENTER.\n");
+    printf("%s Difficulty: %s\n",
+           selected == 1 ? "> " : "  ",
+           levels[difficulty]);
+
+    printf("%s Administrator Login\n",
+           selected == 2 ? "> " : "  ");
+
+    printf("%s Exit\n",
+           selected == 3 ? "> " : "  ");
+
+    printf("\nUse Up/Down and Enter/Space to select.\n");
+    printf("WASD also works. X exits.\n");
+
     fflush(stdout);
 }
 
