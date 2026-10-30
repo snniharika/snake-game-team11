@@ -3,13 +3,16 @@
 #include <stdlib.h>
 #include <limits.h>
 
+#define MAX_PLAYABLE_LENGTH \
+    ((BOARD_WIDTH - 2) * (BOARD_HEIGHT - 2))
+
 static bool same_position(Position a, Position b) {
     return a.x == b.x && a.y == b.y;
 }
 
 static bool snake_occupies(const GameState *game, Position p) {
     if (game == NULL || game->length < 0 ||
-        game->length > BOARD_WIDTH * BOARD_HEIGHT)
+        game->length > MAX_PLAYABLE_LENGTH)
         return false;
 
     for (int i = 0; i < game->length; i++) {
@@ -30,6 +33,7 @@ static void spawn_food(GameState *game) {
     for (int y = 1; y < BOARD_HEIGHT - 1; y++) {
         for (int x = 1; x < BOARD_WIDTH - 1; x++) {
             Position p = {x, y};
+
             if (!snake_occupies(game, p))
                 free_count++;
         }
@@ -51,6 +55,7 @@ static void spawn_food(GameState *game) {
                     game->food = p;
                     return;
                 }
+
                 target--;
             }
         }
@@ -79,7 +84,6 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->segments[1] = (Position){center_x - 1, center_y};
     game->segments[2] = (Position){center_x - 2, center_y};
 
-    /* Temporary food position; Issue 7 will implement safe spawning. */
     spawn_food(game);
 }
 
@@ -107,7 +111,6 @@ void update_direction(GameState *game, Key key) {
             return;
     }
 
-    /* Prevent the snake from reversing directly. */
     if ((game->direction == DIR_UP && new_direction == DIR_DOWN) ||
         (game->direction == DIR_DOWN && new_direction == DIR_UP) ||
         (game->direction == DIR_LEFT && new_direction == DIR_RIGHT) ||
@@ -130,11 +133,8 @@ void update_game(GameState *game) {
     if (game == NULL || game->paused || game->game_over)
         return;
 
-    const int max_playable_length =
-        (BOARD_WIDTH - 2) * (BOARD_HEIGHT - 2);
-
     if (game->length < 1 ||
-        game->length > max_playable_length) {
+        game->length > MAX_PLAYABLE_LENGTH) {
         game->game_over = true;
         return;
     }
@@ -147,10 +147,18 @@ void update_game(GameState *game) {
     Position next = game->segments[0];
 
     switch (game->direction) {
-        case DIR_UP:    next.y--; break;
-        case DIR_DOWN:  next.y++; break;
-        case DIR_LEFT:  next.x--; break;
-        case DIR_RIGHT: next.x++; break;
+        case DIR_UP:
+            next.y--;
+            break;
+        case DIR_DOWN:
+            next.y++;
+            break;
+        case DIR_LEFT:
+            next.x--;
+            break;
+        case DIR_RIGHT:
+            next.x++;
+            break;
         default:
             game->game_over = true;
             return;
@@ -174,7 +182,7 @@ void update_game(GameState *game) {
     }
 
     if (eating &&
-        (game->length >= max_playable_length ||
+        (game->length >= MAX_PLAYABLE_LENGTH ||
          game->score == INT_MAX)) {
         game->game_over = true;
         return;
