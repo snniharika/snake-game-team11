@@ -130,8 +130,11 @@ void update_game(GameState *game) {
     if (game == NULL || game->paused || game->game_over)
         return;
 
+    const int max_playable_length =
+        (BOARD_WIDTH - 2) * (BOARD_HEIGHT - 2);
+
     if (game->length < 1 ||
-        game->length > BOARD_WIDTH * BOARD_HEIGHT - 4) {
+        game->length > max_playable_length) {
         game->game_over = true;
         return;
     }
@@ -171,7 +174,7 @@ void update_game(GameState *game) {
     }
 
     if (eating &&
-        (game->length >= BOARD_WIDTH * BOARD_HEIGHT - 4 ||
+        (game->length >= max_playable_length ||
          game->score == INT_MAX)) {
         game->game_over = true;
         return;
