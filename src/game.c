@@ -57,7 +57,7 @@ static void spawn_food(GameState *game) {
     }
 }
 
-/* SNK-F-003: Initialize the snake and score. */
+/* SNK-F-003: Initialize the board, snake, direction and score. */
 void initialize_game(GameState *game, Difficulty difficulty) {
     if (game == NULL)
         return;
@@ -72,13 +72,14 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->game_over = false;
     game->paused = false;
 
-    int cx = BOARD_WIDTH / 2;
-    int cy = BOARD_HEIGHT / 2;
+    int center_x = BOARD_WIDTH / 2;
+    int center_y = BOARD_HEIGHT / 2;
 
-    game->segments[0] = (Position){cx, cy};
-    game->segments[1] = (Position){cx - 1, cy};
-    game->segments[2] = (Position){cx - 2, cy};
+    game->segments[0] = (Position){center_x, center_y};
+    game->segments[1] = (Position){center_x - 1, center_y};
+    game->segments[2] = (Position){center_x - 2, center_y};
 
+    /* Temporary food position; Issue 7 will implement safe spawning. */
     spawn_food(game);
 }
 
@@ -87,24 +88,34 @@ void update_direction(GameState *game, Key key) {
     if (game == NULL || game->paused || game->game_over)
         return;
 
-    Direction requested = game->direction;
+    Direction new_direction = game->direction;
 
     switch (key) {
-        case KEY_UP:    requested = DIR_UP; break;
-        case KEY_DOWN:  requested = DIR_DOWN; break;
-        case KEY_LEFT:  requested = DIR_LEFT; break;
-        case KEY_RIGHT: requested = DIR_RIGHT; break;
-        default: return;
+        case KEY_UP:
+            new_direction = DIR_UP;
+            break;
+        case KEY_DOWN:
+            new_direction = DIR_DOWN;
+            break;
+        case KEY_LEFT:
+            new_direction = DIR_LEFT;
+            break;
+        case KEY_RIGHT:
+            new_direction = DIR_RIGHT;
+            break;
+        default:
+            return;
     }
 
-    bool opposite =
-        (game->direction == DIR_UP && requested == DIR_DOWN) ||
-        (game->direction == DIR_DOWN && requested == DIR_UP) ||
-        (game->direction == DIR_LEFT && requested == DIR_RIGHT) ||
-        (game->direction == DIR_RIGHT && requested == DIR_LEFT);
+    /* Prevent the snake from reversing directly. */
+    if ((game->direction == DIR_UP && new_direction == DIR_DOWN) ||
+        (game->direction == DIR_DOWN && new_direction == DIR_UP) ||
+        (game->direction == DIR_LEFT && new_direction == DIR_RIGHT) ||
+        (game->direction == DIR_RIGHT && new_direction == DIR_LEFT)) {
+        return;
+    }
 
-    if (!opposite)
-        game->direction = requested;
+    game->direction = new_direction;
 }
 
 /* SNK-F-013: Pause or resume only an active game. */
