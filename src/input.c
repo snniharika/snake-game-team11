@@ -32,7 +32,8 @@ Key read_key(void) {
         case 's': case 'S': return KEY_DOWN;
         case 'a': case 'A': return KEY_LEFT;
         case 'd': case 'D': return KEY_RIGHT;
-        case '\r': return KEY_ENTER;
+        case '\r':
+        case ' ': return KEY_ENTER;
         case 27: return KEY_ESCAPE;
         case 'x': case 'X': return KEY_QUIT;
         case 'p': case 'P': return KEY_PAUSE;
