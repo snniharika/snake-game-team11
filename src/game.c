@@ -6,10 +6,16 @@ static bool same_position(Position a, Position b) {
 }
 
 static bool snake_occupies(const GameState *game, Position p) {
+    if (game == NULL || game->length < 0 ||
+        game->length > BOARD_WIDTH * BOARD_HEIGHT) {
+        return true;
+    }
+
     for (int i = 0; i < game->length; i++) {
         if (same_position(game->segments[i], p))
             return true;
     }
+
     return false;
 }
 
@@ -49,6 +55,8 @@ static void spawn_food(GameState *game) {
 
 /* SNK-F-003: Initialize the board, snake, direction and score. */
 void initialize_game(GameState *game, Difficulty difficulty) {
+    if (game == NULL)
+        return;
     game->length = INITIAL_LENGTH;
     game->score = 0;
     game->direction = DIR_RIGHT;
@@ -63,15 +71,17 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->segments[1] = (Position){center_x - 1, center_y};
     game->segments[2] = (Position){center_x - 2, center_y};
 
-    /* Temporary food position; Issue 7 will implement safe spawning. */
+    // spawn random food
     spawn_food(game);
 }
 
 /* SNK-F-004: Ignore direct 180-degree reversals. */
 void update_direction(GameState *game, Key key) {
-    Direction new_direction = game->direction;
     /* SNK-F-013: Direction input is ignored while paused. */
-    if (game->paused)
+    if (game == NULL)
+        return;
+    Direction new_direction = game->direction;
+    if (game->paused || game->game_over)
         return;
 
     switch (key) {
@@ -105,11 +115,16 @@ void update_direction(GameState *game, Key key) {
 /* SNK-F-013: Pausing freezes every field of the game state; resuming
  * simply clears the flag so play continues from the same snake position. */
 void set_paused(GameState *game, bool paused) {
+    if (game == NULL)
+        return;
+
     if (!game->game_over)
         game->paused = paused;
 }
 
 void update_game(GameState *game) {
+    if (game == NULL)
+        return;
     if (game->paused || game->game_over)
         return;
 
