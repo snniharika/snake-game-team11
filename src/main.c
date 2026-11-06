@@ -197,7 +197,7 @@ int main(void) {
         } else if (key == KEY_DOWN) {
             selected = (selected + 1) % 4;
             menu_needs_redraw = true;
-        } else if (key == KEY_QUIT) {
+        } else if (key == KEY_QUIT || key == KEY_ESCAPE) {
             running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
