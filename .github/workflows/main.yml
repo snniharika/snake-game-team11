@@ -23,5 +23,5 @@ jobs:
         shell: bash
         run: |
           gcc -Wall -Wextra -pedantic -std=c11 -Iinclude \
-            src/main.c src/input.c src/game.c src/render.c src/admin.c \
+            src/main.c src/input.c src/game.c src/render.c src/admin.c src/persistence.c \
             -lbcrypt -o snake.exe
