@@ -30,4 +30,6 @@ bool admin_view_protected_data(void);
  */
 bool admin_save_protected_data(const ProtectedGameData *data);
 
+bool admin_reset_protected_data(void);
+
 #endif

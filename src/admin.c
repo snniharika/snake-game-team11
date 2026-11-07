@@ -386,3 +386,33 @@ bool admin_save_protected_data(const ProtectedGameData *data)
 
     return true;
 }
+
+
+
+/*
+ * Reset all stored game statistics.
+ * Only an authenticated Administrator can perform this operation.
+ */
+bool admin_reset_protected_data(void)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    ProtectedGameData data = {
+        .high_score = 0,
+        .games_played = 0,
+        .last_score = 0,
+        .last_difficulty = "Easy"
+    };
+
+    if (!persistence_save_game_data(&data)) {
+        printf("\nFailed to reset protected game data.\n");
+        return false;
+    }
+
+    printf("\nAll protected game data has been reset successfully.\n");
+
+    return true;
+}

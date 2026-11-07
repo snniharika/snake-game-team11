@@ -367,12 +367,13 @@ static void handle_admin_data_update(void)
         return;
     }
 
-    printf("\n========== MODIFY PROTECTED DATA ==========\n");
+    printf("\n========== ADMINISTRATOR OPERATIONS ==========\n");
     printf("1. Modify highest score\n");
     printf("2. Modify total games played\n");
     printf("3. Modify last game score\n");
     printf("4. Modify last game difficulty\n");
     printf("5. Cancel\n");
+    printf("6. Reset all stored game data\n");
     printf("Select an option: ");
 
     int choice;
@@ -452,6 +453,37 @@ static void handle_admin_data_update(void)
             strcpy(data.last_difficulty, difficulty);
             break;
         }
+
+        case 6: {
+    char confirmation;
+
+    printf("\nWARNING: This will reset all stored game data.\n");
+    printf("Are you sure? (Y/N): ");
+
+    if (scanf(" %c", &confirmation) != 1) {
+        printf("\nUnable to read confirmation. Reset cancelled.\n");
+        return;
+    }
+
+    /*
+     * Clear the remaining characters from the input line.
+     */
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != EOF) {
+    }
+
+    if (confirmation != 'Y' && confirmation != 'y') {
+        printf("\nReset cancelled. No data was changed.\n");
+        return;
+    }
+
+    if (admin_reset_protected_data()) {
+        printf("\nUpdated protected data:\n");
+        admin_view_protected_data();
+    }
+
+    return;
+}
 
         default:
             printf("\nInvalid option. No changes were made.\n");
