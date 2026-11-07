@@ -307,20 +307,30 @@ static bool read_admin_password(char *password, size_t capacity) {
     return true;
 }
 
-static void handle_admin_login(void) {
+static void handle_admin_login(void)
+{
     char password[1025] = {0};
 
+    /*
+     * If the Administrator is already authenticated,
+     * allow access to protected data without logging in again.
+     */
     if (admin_is_authenticated()) {
-        printf("Administrator is already authenticated.\n");
-        printf("Press any key to return to the menu...\n");
+        printf("\nAdministrator is already authenticated.\n");
+
+        admin_view_protected_data();
+
+        printf("\nPress any key to return to the menu...\n");
         (void)_getch();
+
         return;
     }
 
     if (!read_admin_password(password, sizeof(password))) {
-        printf("Password input failed or was empty.\n");
+        printf("\nPassword input failed or was empty.\n");
         printf("Press any key to return to the menu...\n");
         (void)_getch();
+
         return;
     }
 
@@ -329,11 +339,18 @@ static void handle_admin_login(void) {
     SecureZeroMemory(password, sizeof(password));
 
     if (success) {
-        printf("Administrator authentication successful.\n");
-    } else {
-        printf("Administrator authentication failed.\n");
+        printf("\nAdministrator authentication successful.\n");
+
+        /*
+         * Display protected data only after successful login.
+         */
+        admin_view_protected_data();
+    }
+    else {
+        printf("\nAdministrator authentication failed.\n");
+        printf("Protected data access denied.\n");
     }
 
-    printf("Press any key to return to the menu...\n");
+    printf("\nPress any key to return to the menu...\n");
     (void)_getch();
 }

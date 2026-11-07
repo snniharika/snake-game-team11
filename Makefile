@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -pedantic -Iinclude
 LDFLAGS = -lbcrypt
-SOURCES = src/main.c src/input.c src/game.c src/render.c src/admin.c
-HEADERS = include/snake.h include/admin.h
+SOURCES = src/main.c src/input.c src/game.c src/render.c src/admin.c src/persistence.c
+HEADERS = include/snake.h include/admin.h include/persistence.h
 TARGET = snake.exe
 
 all: $(TARGET)

@@ -1,5 +1,5 @@
 #include "admin.h"
-
+#include "persistence.h"
 #include <windows.h>
 #include <bcrypt.h>
 #include <limits.h>
@@ -328,4 +328,37 @@ bool admin_is_authenticated(void)
 void admin_logout(void)
 {
     authenticated = false;
+}
+
+
+
+/*
+ * Display protected game data.
+ * Access is granted only to an authenticated Administrator.
+ */
+bool admin_view_protected_data(void)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    ProtectedGameData data;
+
+    if (!persistence_load_game_data(&data)) {
+        printf("\nUnable to read protected game data.\n");
+        printf("The data file may be malformed.\n");
+        return false;
+    }
+
+    printf("\n========== PROTECTED GAME DATA ==========\n");
+
+    printf("Highest Score   : %d\n", data.high_score);
+    printf("Games Played    : %u\n", data.games_played);
+    printf("Last Game Score : %d\n", data.last_score);
+    printf("Last Difficulty : %s\n", data.last_difficulty);
+
+    printf("=========================================\n");
+
+    return true;
 }
