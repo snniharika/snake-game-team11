@@ -90,14 +90,20 @@ static GameOverResult run_game_over_menu(GameState *game) {
  * Returns true when the player chooses the main menu,
  * and false when the player chooses to exit.
  */
-static bool play_game(Difficulty difficulty) {
+static bool play_game(Difficulty difficulty, FILE *timing_log) {
     while (1) {
         GameState game;
         initialize_game(&game, difficulty);
         render_game(&game);
 
-        DWORD last_move = GetTickCount();
         DWORD move_interval = (DWORD)movement_delay(difficulty);
+
+        /*
+         * Use a scheduled tick deadline to avoid accumulating
+         * timing drift during gameplay.
+         */
+        ULONGLONG last_tick = GetTickCount64();
+        ULONGLONG next_tick = last_tick + move_interval;
 
         while (!game.game_over) {
             Key key = KEY_NONE;
@@ -138,7 +144,13 @@ static bool play_game(Difficulty difficulty) {
                     return false;
                 }
 
-                last_move = GetTickCount();
+                /*
+                 * Reset the tick schedule after resuming.
+                 * Time spent paused must not affect game timing.
+                 */
+                last_tick = GetTickCount64();
+                next_tick = last_tick + move_interval;
+
                 continue;
             }
 
@@ -146,19 +158,53 @@ static bool play_game(Difficulty difficulty) {
                 update_direction(&game, key);
             }
 
-            DWORD now = GetTickCount();
+            ULONGLONG now = GetTickCount64();
 
             /*
-             * Polling frequently must not increase the snake's
-             * movement speed.
+             * Update and redraw only when the scheduled game tick
+             * arrives.
              */
-            if ((DWORD)(now - last_move) >= move_interval) {
+            if (now >= next_tick) {
+                DWORD actual_interval = (DWORD)(now - last_tick);
+
                 update_game(&game);
                 render_game(&game);
-                last_move = now;
+
+                /*
+                 * Record tick timing for SNK-NF-003 performance testing.
+                 */
+                if (timing_log != NULL) {
+                    DWORD deviation = actual_interval > move_interval
+                                          ? actual_interval - move_interval
+                                          : move_interval - actual_interval;
+
+                    double jitter_percent =
+                        ((double)deviation / (double)move_interval) * 100.0;
+
+                    fprintf(timing_log, "%lu,%lu,%.2f\n",
+                            (unsigned long)move_interval,
+                            (unsigned long)actual_interval,
+                            jitter_percent);
+
+                    fflush(timing_log);
+                }
+
+                last_tick = now;
+                next_tick += move_interval;
+
+                /*
+                 * Skip missed deadlines rather than running multiple
+                 * catch-up updates in quick succession.
+                 */
+                if (now >= next_tick) {
+                    next_tick = now + move_interval;
+                }
             }
 
-            Sleep(5);
+            /*
+             * Poll input frequently without changing the game tick rate.
+             */
+            Sleep(1);
         }
 
         GameOverResult over = run_game_over_menu(&game);
@@ -179,6 +225,23 @@ int main(void) {
     srand((unsigned int)time(NULL));
 
     initialize_input();
+
+    /*
+     * Open a CSV file to record game-loop timing measurements.
+     * Append mode preserves measurements from previous sessions.
+     */
+    FILE *timing_log = fopen("game_loop_timing.csv", "a");
+
+    if (timing_log != NULL) {
+        fseek(timing_log, 0, SEEK_END);
+
+        if (ftell(timing_log) == 0) {
+            fprintf(timing_log,
+                    "expected_interval_ms,actual_interval_ms,jitter_percent\n");
+        }
+    } else {
+        printf("Warning: Unable to create game loop timing log.\n");
+    }
 
     int selected = 0;
     Difficulty difficulty = EASY;
@@ -206,7 +269,7 @@ int main(void) {
             running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
-                running = play_game(difficulty);
+                running = play_game(difficulty, timing_log);
                 menu_needs_redraw = true;
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
@@ -227,6 +290,11 @@ int main(void) {
     }
 
     shutdown_input();
+
+    if (timing_log != NULL) {
+        fclose(timing_log);
+    }
+
     return 0;
 }
 
@@ -312,12 +380,10 @@ static bool read_admin_password(char *password, size_t capacity) {
     return true;
 }
 
-
 /*
  * Read a non-negative integer from the administrator.
  */
-static bool read_nonnegative_number(int *value)
-{
+static bool read_nonnegative_number(int *value) {
     char line[64];
     char *end;
 
@@ -353,8 +419,7 @@ static bool read_nonnegative_number(int *value)
  * Allow an authenticated Administrator to modify
  * one stored score or configuration value.
  */
-static void handle_admin_data_update(void)
-{
+static void handle_admin_data_update(void) {
     if (!admin_is_authenticated()) {
         printf("\nAccess denied. Administrator authentication required.\n");
         return;
@@ -455,35 +520,35 @@ static void handle_admin_data_update(void)
         }
 
         case 6: {
-    char confirmation;
+            char confirmation;
 
-    printf("\nWARNING: This will reset all stored game data.\n");
-    printf("Are you sure? (Y/N): ");
+            printf("\nWARNING: This will reset all stored game data.\n");
+            printf("Are you sure? (Y/N): ");
 
-    if (scanf(" %c", &confirmation) != 1) {
-        printf("\nUnable to read confirmation. Reset cancelled.\n");
-        return;
-    }
+            if (scanf(" %c", &confirmation) != 1) {
+                printf("\nUnable to read confirmation. Reset cancelled.\n");
+                return;
+            }
 
-    /*
-     * Clear the remaining characters from the input line.
-     */
-    int ch;
-    while ((ch = getchar()) != '\n' && ch != EOF) {
-    }
+            /*
+             * Clear the remaining characters from the input line.
+             */
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF) {
+            }
 
-    if (confirmation != 'Y' && confirmation != 'y') {
-        printf("\nReset cancelled. No data was changed.\n");
-        return;
-    }
+            if (confirmation != 'Y' && confirmation != 'y') {
+                printf("\nReset cancelled. No data was changed.\n");
+                return;
+            }
 
-    if (admin_reset_protected_data()) {
-        printf("\nUpdated protected data:\n");
-        admin_view_protected_data();
-    }
+            if (admin_reset_protected_data()) {
+                printf("\nUpdated protected data:\n");
+                admin_view_protected_data();
+            }
 
-    return;
-}
+            return;
+        }
 
         default:
             printf("\nInvalid option. No changes were made.\n");
@@ -500,8 +565,7 @@ static void handle_admin_data_update(void)
     }
 }
 
-static void handle_admin_login(void)
-{
+static void handle_admin_login(void) {
     char password[1025] = {0};
 
     if (!admin_is_authenticated()) {
@@ -525,8 +589,7 @@ static void handle_admin_login(void)
         }
 
         printf("\nAdministrator authentication successful.\n");
-    }
-    else {
+    } else {
         printf("\nAdministrator is already authenticated.\n");
     }
 
