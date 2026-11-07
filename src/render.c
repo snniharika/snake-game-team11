@@ -3,6 +3,7 @@
 #include <windows.h>
 
 static void clear_screen(void) {
+    printf("\033[?25h");
     /* Clear the screen and the scrollback, then move the cursor home. */
     printf("\033[2J\033[3J\033[H");
 }
@@ -66,14 +67,18 @@ static void draw_board(const GameState *game) {
                 putchar(is_body ? 'o' : ' ');
             }
         }
-        putchar('\n');
+        printf("\033[K\n");    
     }
 }
 
 void render_game(const GameState *game) {
-    clear_screen();
+    if (game == NULL)
+        return;
 
-    printf("Score: %d | Difficulty: %s\n",
+    printf("\033[?25l"); //hide cursor during gameplay
+    printf("\033[H"); //return the board without clearing the screen everytime
+
+    printf("Score: %-6d | Difficulty: %-8s\033[K\n",
            game->score, difficulty_name(game->difficulty));
 
     draw_board(game);

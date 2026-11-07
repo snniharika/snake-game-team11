@@ -1,4 +1,3 @@
-
 #include "snake.h"
 #include <stdlib.h>
 #include <limits.h>
@@ -12,8 +11,9 @@ static bool same_position(Position a, Position b) {
 
 static bool snake_occupies(const GameState *game, Position p) {
     if (game == NULL || game->length < 0 ||
-        game->length > MAX_PLAYABLE_LENGTH)
-        return false;
+        game->length > MAX_PLAYABLE_LENGTH) {
+        return true;
+    }
 
     for (int i = 0; i < game->length; i++) {
         if (same_position(game->segments[i], p))
@@ -84,6 +84,7 @@ void initialize_game(GameState *game, Difficulty difficulty) {
     game->segments[1] = (Position){center_x - 1, center_y};
     game->segments[2] = (Position){center_x - 2, center_y};
 
+    // spawn random food
     spawn_food(game);
 }
 
@@ -123,10 +124,11 @@ void update_direction(GameState *game, Key key) {
 
 /* SNK-F-013: Pause or resume only an active game. */
 void set_paused(GameState *game, bool paused) {
-    if (game == NULL || game->game_over)
+    if (game == NULL)
         return;
 
-    game->paused = paused;
+    if (!game->game_over)
+        game->paused = paused;
 }
 
 void update_game(GameState *game) {
