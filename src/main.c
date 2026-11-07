@@ -221,6 +221,7 @@ int main(void) {
         Sleep(5);
     }
 
+    printf("\033[?25h"); //cursor restored after the game
     shutdown_input();
     return 0;
 }
