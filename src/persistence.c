@@ -76,3 +76,57 @@ bool persistence_load_game_data(ProtectedGameData *data)
 
     return true;
 }
+
+
+
+
+/*
+ * Save updated game data to the local configuration file.
+ */
+bool persistence_save_game_data(const ProtectedGameData *data)
+{
+    if (data == NULL) {
+        return false;
+    }
+
+    /*
+     * Validate values before writing them.
+     */
+    if (data->high_score < 0 ||
+        data->last_score < 0 ||
+        data->games_played > 2147483647U) {
+        return false;
+    }
+
+    if (strcmp(data->last_difficulty, "Easy") != 0 &&
+        strcmp(data->last_difficulty, "Medium") != 0 &&
+        strcmp(data->last_difficulty, "Hard") != 0) {
+        return false;
+    }
+
+    FILE *file = fopen(GAME_DATA_PATH, "w");
+
+    if (file == NULL) {
+        return false;
+    }
+
+    int result = fprintf(
+        file,
+        "high_score=%d\n"
+        "games_played=%u\n"
+        "last_score=%d\n"
+        "last_difficulty=%s\n",
+        data->high_score,
+        data->games_played,
+        data->last_score,
+        data->last_difficulty
+    );
+
+    bool success = result >= 0 && fflush(file) == 0;
+
+    if (fclose(file) != 0) {
+        success = false;
+    }
+
+    return success;
+}

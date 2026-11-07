@@ -362,3 +362,27 @@ bool admin_view_protected_data(void)
 
     return true;
 }
+
+
+
+
+/*
+ * Save protected game data only if the Administrator
+ * is currently authenticated.
+ */
+bool admin_save_protected_data(const ProtectedGameData *data)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    if (!persistence_save_game_data(data)) {
+        printf("\nFailed to save protected game data.\n");
+        return false;
+    }
+
+    printf("\nProtected game data updated successfully.\n");
+
+    return true;
+}

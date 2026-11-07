@@ -2,6 +2,7 @@
 #define ADMIN_H
 
 #include <stdbool.h>
+#include "persistence.h"
 
 /*
  * Authenticate an Administrator using the supplied password.
@@ -23,5 +24,10 @@ void admin_logout(void);
  * Display protected game data to an authenticated Administrator.
  */
 bool admin_view_protected_data(void);
+
+/*
+ * Save modified protected data only for an authenticated Administrator.
+ */
+bool admin_save_protected_data(const ProtectedGameData *data);
 
 #endif

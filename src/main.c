@@ -5,6 +5,11 @@
 #include <windows.h>
 #include "admin.h"
 #include <conio.h>
+#include "persistence.h"
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
 
 static void handle_admin_login(void);
 
@@ -307,49 +312,196 @@ static bool read_admin_password(char *password, size_t capacity) {
     return true;
 }
 
+
+/*
+ * Read a non-negative integer from the administrator.
+ */
+static bool read_nonnegative_number(int *value)
+{
+    char line[64];
+    char *end;
+
+    if (value == NULL) {
+        return false;
+    }
+
+    if (fgets(line, sizeof(line), stdin) == NULL) {
+        return false;
+    }
+
+    errno = 0;
+
+    long number = strtol(line, &end, 10);
+
+    if (end == line || errno == ERANGE ||
+        number < 0 || number > INT_MAX) {
+        return false;
+    }
+
+    while (*end != '\0') {
+        if (!isspace((unsigned char)*end)) {
+            return false;
+        }
+        end++;
+    }
+
+    *value = (int)number;
+    return true;
+}
+
+/*
+ * Allow an authenticated Administrator to modify
+ * one stored score or configuration value.
+ */
+static void handle_admin_data_update(void)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return;
+    }
+
+    ProtectedGameData data;
+
+    if (!persistence_load_game_data(&data)) {
+        printf("\nUnable to load protected game data.\n");
+        return;
+    }
+
+    printf("\n========== MODIFY PROTECTED DATA ==========\n");
+    printf("1. Modify highest score\n");
+    printf("2. Modify total games played\n");
+    printf("3. Modify last game score\n");
+    printf("4. Modify last game difficulty\n");
+    printf("5. Cancel\n");
+    printf("Select an option: ");
+
+    int choice;
+
+    if (!read_nonnegative_number(&choice)) {
+        printf("\nInvalid input. No changes were made.\n");
+        return;
+    }
+
+    if (choice == 5) {
+        printf("\nModification cancelled.\n");
+        return;
+    }
+
+    switch (choice) {
+        case 1: {
+            int value;
+
+            printf("Enter new highest score: ");
+
+            if (!read_nonnegative_number(&value)) {
+                printf("\nInvalid score. No changes were made.\n");
+                return;
+            }
+
+            data.high_score = value;
+            break;
+        }
+
+        case 2: {
+            int value;
+
+            printf("Enter new total games played: ");
+
+            if (!read_nonnegative_number(&value)) {
+                printf("\nInvalid value. No changes were made.\n");
+                return;
+            }
+
+            data.games_played = (unsigned int)value;
+            break;
+        }
+
+        case 3: {
+            int value;
+
+            printf("Enter new last game score: ");
+
+            if (!read_nonnegative_number(&value)) {
+                printf("\nInvalid score. No changes were made.\n");
+                return;
+            }
+
+            data.last_score = value;
+            break;
+        }
+
+        case 4: {
+            char difficulty[32];
+
+            printf("Enter difficulty (Easy/Medium/Hard): ");
+
+            if (fgets(difficulty, sizeof(difficulty), stdin) == NULL) {
+                printf("\nUnable to read difficulty. No changes were made.\n");
+                return;
+            }
+
+            difficulty[strcspn(difficulty, "\r\n")] = '\0';
+
+            if (strcmp(difficulty, "Easy") != 0 &&
+                strcmp(difficulty, "Medium") != 0 &&
+                strcmp(difficulty, "Hard") != 0) {
+                printf("\nInvalid difficulty. No changes were made.\n");
+                return;
+            }
+
+            strcpy(data.last_difficulty, difficulty);
+            break;
+        }
+
+        default:
+            printf("\nInvalid option. No changes were made.\n");
+            return;
+    }
+
+    /*
+     * The admin module performs the authentication check
+     * again before saving the modified values.
+     */
+    if (admin_save_protected_data(&data)) {
+        printf("\nUpdated protected data:\n");
+        admin_view_protected_data();
+    }
+}
+
 static void handle_admin_login(void)
 {
     char password[1025] = {0};
 
-    /*
-     * If the Administrator is already authenticated,
-     * allow access to protected data without logging in again.
-     */
-    if (admin_is_authenticated()) {
-        printf("\nAdministrator is already authenticated.\n");
+    if (!admin_is_authenticated()) {
+        if (!read_admin_password(password, sizeof(password))) {
+            printf("\nPassword input failed or was empty.\n");
+            printf("Press any key to return to the menu...\n");
+            (void)_getch();
+            return;
+        }
 
-        admin_view_protected_data();
+        bool success = admin_authenticate(password);
 
-        printf("\nPress any key to return to the menu...\n");
-        (void)_getch();
+        SecureZeroMemory(password, sizeof(password));
 
-        return;
-    }
+        if (!success) {
+            printf("\nAdministrator authentication failed.\n");
+            printf("Protected data access denied.\n");
+            printf("Press any key to return to the menu...\n");
+            (void)_getch();
+            return;
+        }
 
-    if (!read_admin_password(password, sizeof(password))) {
-        printf("\nPassword input failed or was empty.\n");
-        printf("Press any key to return to the menu...\n");
-        (void)_getch();
-
-        return;
-    }
-
-    bool success = admin_authenticate(password);
-
-    SecureZeroMemory(password, sizeof(password));
-
-    if (success) {
         printf("\nAdministrator authentication successful.\n");
-
-        /*
-         * Display protected data only after successful login.
-         */
-        admin_view_protected_data();
     }
     else {
-        printf("\nAdministrator authentication failed.\n");
-        printf("Protected data access denied.\n");
+        printf("\nAdministrator is already authenticated.\n");
     }
+
+    admin_view_protected_data();
+
+    printf("\n");
+    handle_admin_data_update();
 
     printf("\nPress any key to return to the menu...\n");
     (void)_getch();
