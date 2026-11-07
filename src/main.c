@@ -5,6 +5,11 @@
 #include <windows.h>
 #include "admin.h"
 #include <conio.h>
+#include "persistence.h"
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
 
 static void handle_admin_login(void);
 
@@ -28,6 +33,53 @@ typedef enum {
     OVER_MENU,
     OVER_EXIT
 } GameOverResult;
+
+/* Convert the selected difficulty to the format stored on disk. */
+static const char *difficulty_name(Difficulty difficulty) {
+    switch (difficulty) {
+        case EASY:
+            return "Easy";
+        case MEDIUM:
+            return "Medium";
+        case HARD:
+            return "Hard";
+        default:
+            return "Easy";
+    }
+}
+
+/* Persist statistics once a game has reached its game-over state. */
+static bool save_completed_game(const GameState *game) {
+    if (game == NULL || game->score < 0) {
+        return false;
+    }
+
+    ProtectedGameData data;
+
+    if (!persistence_load_game_data(&data)) {
+        printf("\nWarning: Could not read saved game data. Statistics were not updated.\n");
+        return false;
+    }
+
+    if (game->score > data.high_score) {
+        data.high_score = game->score;
+    }
+
+    /* Keep the counter within the persistence module's accepted range. */
+    if (data.games_played < 2147483647U) {
+        data.games_played++;
+    }
+
+    data.last_score = game->score;
+    strcpy(data.last_difficulty, difficulty_name(game->difficulty));
+
+    if (!persistence_save_game_data(&data)) {
+        printf("\nWarning: Could not save game statistics to data/game_data.txt.\n");
+        return false;
+    }
+
+    return true;
+}
 
 /* Pause the game without modifying its current state. */
 static PauseResult run_pause_menu(GameState *game) {
@@ -85,14 +137,15 @@ static GameOverResult run_game_over_menu(GameState *game) {
  * Returns true when the player chooses the main menu,
  * and false when the player chooses to exit.
  */
-static bool play_game(Difficulty difficulty) {
+static bool play_game(Difficulty difficulty, FILE *timing_log) {
     while (1) {
         GameState game;
         initialize_game(&game, difficulty);
         render_game(&game);
 
-        DWORD last_move = GetTickCount();
         DWORD move_interval = (DWORD)movement_delay(difficulty);
+        ULONGLONG last_tick = GetTickCount64();
+        ULONGLONG next_tick = last_tick + move_interval;
 
         while (!game.game_over) {
             Key key = KEY_NONE;
@@ -133,7 +186,8 @@ static bool play_game(Difficulty difficulty) {
                     return false;
                 }
 
-                last_move = GetTickCount();
+                last_tick = GetTickCount64();
+                next_tick = last_tick + move_interval;
                 continue;
             }
 
@@ -141,20 +195,47 @@ static bool play_game(Difficulty difficulty) {
                 update_direction(&game, key);
             }
 
-            DWORD now = GetTickCount();
+            ULONGLONG now = GetTickCount64();
 
             /*
-             * Polling frequently must not increase the snake's
-             * movement speed.
+             * Run updates on a scheduled tick deadline. This avoids
+             * accumulating timing drift from the work done each tick.
              */
-            if ((DWORD)(now - last_move) >= move_interval) {
+            if (now >= next_tick) {
+                DWORD actual_interval = (DWORD)(now - last_tick);
+
                 update_game(&game);
                 render_game(&game);
-                last_move = now;
+
+                /* Record tick timing for SNK-NF-003 performance testing. */
+                if (timing_log != NULL) {
+                    DWORD deviation = actual_interval > move_interval
+                                          ? actual_interval - move_interval
+                                          : move_interval - actual_interval;
+                    double jitter_percent =
+                        ((double)deviation / (double)move_interval) * 100.0;
+
+                    fprintf(timing_log, "%lu,%lu,%.2f\n",
+                            (unsigned long)move_interval,
+                            (unsigned long)actual_interval,
+                            jitter_percent);
+                }
+
+                last_tick = now;
+                next_tick += move_interval;
+
+                /* Skip missed deadlines rather than running catch-up ticks. */
+                if (now >= next_tick) {
+                    next_tick = now + move_interval;
+                }
             }
 
-            Sleep(5);
+            /* Poll input frequently without changing the game tick rate. */
+            Sleep(1);
         }
+
+        /* Save the completed game's score and statistics before showing the menu. */
+        (void)save_completed_game(&game);
 
         GameOverResult over = run_game_over_menu(&game);
 
@@ -174,6 +255,20 @@ int main(void) {
     srand((unsigned int)time(NULL));
 
     initialize_input();
+
+    /* Open a CSV log used to measure game-loop tick timing. */
+    FILE *timing_log = fopen("game_loop_timing.csv", "a");
+
+    if (timing_log != NULL) {
+        fseek(timing_log, 0, SEEK_END);
+
+        if (ftell(timing_log) == 0) {
+            fprintf(timing_log,
+                    "expected_interval_ms,actual_interval_ms,jitter_percent\n");
+        }
+    } else {
+        printf("Warning: Unable to create game loop timing log.\n");
+    }
 
     int selected = 0;
     Difficulty difficulty = EASY;
@@ -201,7 +296,7 @@ int main(void) {
             running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
-                running = play_game(difficulty);
+                running = play_game(difficulty, timing_log);
                 menu_needs_redraw = true;
             } else if (selected == 1) {
                 difficulty = (Difficulty)((difficulty + 1) % 3);
@@ -223,6 +318,11 @@ int main(void) {
 
     printf("\033[?25h"); //cursor restored after the game
     shutdown_input();
+
+    if (timing_log != NULL) {
+        fclose(timing_log);
+    }
+
     return 0;
 }
 
@@ -308,33 +408,229 @@ static bool read_admin_password(char *password, size_t capacity) {
     return true;
 }
 
-static void handle_admin_login(void) {
+
+/*
+ * Read a non-negative integer from the administrator.
+ */
+static bool read_nonnegative_number(int *value)
+{
+    char line[64];
+    char *end;
+
+    if (value == NULL) {
+        return false;
+    }
+
+    if (fgets(line, sizeof(line), stdin) == NULL) {
+        return false;
+    }
+
+    errno = 0;
+
+    long number = strtol(line, &end, 10);
+
+    if (end == line || errno == ERANGE ||
+        number < 0 || number > INT_MAX) {
+        return false;
+    }
+
+    while (*end != '\0') {
+        if (!isspace((unsigned char)*end)) {
+            return false;
+        }
+        end++;
+    }
+
+    *value = (int)number;
+    return true;
+}
+
+/*
+ * Allow an authenticated Administrator to modify
+ * one stored score or configuration value.
+ */
+static void handle_admin_data_update(void)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return;
+    }
+
+    ProtectedGameData data;
+
+    if (!persistence_load_game_data(&data)) {
+        printf("\nUnable to load protected game data.\n");
+        return;
+    }
+
+    printf("\n========== ADMINISTRATOR OPERATIONS ==========\n");
+    printf("1. Modify highest score\n");
+    printf("2. Modify total games played\n");
+    printf("3. Modify last game score\n");
+    printf("4. Modify last game difficulty\n");
+    printf("5. Cancel\n");
+    printf("6. Reset all stored game data\n");
+    printf("Select an option: ");
+
+    int choice;
+
+    if (!read_nonnegative_number(&choice)) {
+        printf("\nInvalid input. No changes were made.\n");
+        return;
+    }
+
+    if (choice == 5) {
+        printf("\nModification cancelled.\n");
+        return;
+    }
+
+    switch (choice) {
+        case 1: {
+            int value;
+
+            printf("Enter new highest score: ");
+
+            if (!read_nonnegative_number(&value)) {
+                printf("\nInvalid score. No changes were made.\n");
+                return;
+            }
+
+            data.high_score = value;
+            break;
+        }
+
+        case 2: {
+            int value;
+
+            printf("Enter new total games played: ");
+
+            if (!read_nonnegative_number(&value)) {
+                printf("\nInvalid value. No changes were made.\n");
+                return;
+            }
+
+            data.games_played = (unsigned int)value;
+            break;
+        }
+
+        case 3: {
+            int value;
+
+            printf("Enter new last game score: ");
+
+            if (!read_nonnegative_number(&value)) {
+                printf("\nInvalid score. No changes were made.\n");
+                return;
+            }
+
+            data.last_score = value;
+            break;
+        }
+
+        case 4: {
+            char difficulty[32];
+
+            printf("Enter difficulty (Easy/Medium/Hard): ");
+
+            if (fgets(difficulty, sizeof(difficulty), stdin) == NULL) {
+                printf("\nUnable to read difficulty. No changes were made.\n");
+                return;
+            }
+
+            difficulty[strcspn(difficulty, "\r\n")] = '\0';
+
+            if (strcmp(difficulty, "Easy") != 0 &&
+                strcmp(difficulty, "Medium") != 0 &&
+                strcmp(difficulty, "Hard") != 0) {
+                printf("\nInvalid difficulty. No changes were made.\n");
+                return;
+            }
+
+            strcpy(data.last_difficulty, difficulty);
+            break;
+        }
+
+        case 6: {
+    char confirmation;
+
+    printf("\nWARNING: This will reset all stored game data.\n");
+    printf("Are you sure? (Y/N): ");
+
+    if (scanf(" %c", &confirmation) != 1) {
+        printf("\nUnable to read confirmation. Reset cancelled.\n");
+        return;
+    }
+
+    /*
+     * Clear the remaining characters from the input line.
+     */
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != EOF) {
+    }
+
+    if (confirmation != 'Y' && confirmation != 'y') {
+        printf("\nReset cancelled. No data was changed.\n");
+        return;
+    }
+
+    if (admin_reset_protected_data()) {
+        printf("\nUpdated protected data:\n");
+        admin_view_protected_data();
+    }
+
+    return;
+}
+
+        default:
+            printf("\nInvalid option. No changes were made.\n");
+            return;
+    }
+
+    /*
+     * The admin module performs the authentication check
+     * again before saving the modified values.
+     */
+    if (admin_save_protected_data(&data)) {
+        printf("\nUpdated protected data:\n");
+        admin_view_protected_data();
+    }
+}
+
+static void handle_admin_login(void)
+{
     char password[1025] = {0};
 
-    if (admin_is_authenticated()) {
-        printf("Administrator is already authenticated.\n");
-        printf("Press any key to return to the menu...\n");
-        (void)_getch();
-        return;
+    if (!admin_is_authenticated()) {
+        if (!read_admin_password(password, sizeof(password))) {
+            printf("\nPassword input failed or was empty.\n");
+            printf("Press any key to return to the menu...\n");
+            (void)_getch();
+            return;
+        }
+
+        bool success = admin_authenticate(password);
+
+        SecureZeroMemory(password, sizeof(password));
+
+        if (!success) {
+            printf("\nAdministrator authentication failed.\n");
+            printf("Protected data access denied.\n");
+            printf("Press any key to return to the menu...\n");
+            (void)_getch();
+            return;
+        }
+
+        printf("\nAdministrator authentication successful.\n");
+    }
+    else {
+        printf("\nAdministrator is already authenticated.\n");
     }
 
-    if (!read_admin_password(password, sizeof(password))) {
-        printf("Password input failed or was empty.\n");
-        printf("Press any key to return to the menu...\n");
-        (void)_getch();
-        return;
-    }
+    admin_view_protected_data();
 
-    bool success = admin_authenticate(password);
+    printf("\n");
+    handle_admin_data_update();
 
-    SecureZeroMemory(password, sizeof(password));
-
-    if (success) {
-        printf("Administrator authentication successful.\n");
-    } else {
-        printf("Administrator authentication failed.\n");
-    }
-
-    printf("Press any key to return to the menu...\n");
+    printf("\nPress any key to return to the menu...\n");
     (void)_getch();
 }

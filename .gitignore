@@ -23,3 +23,6 @@ config/admin_credentials.conf
 
 # Generated executable
 snake.exe
+
+
+game_loop_timing.csv

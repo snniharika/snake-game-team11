@@ -1,5 +1,5 @@
 #include "admin.h"
-
+#include "persistence.h"
 #include <windows.h>
 #include <bcrypt.h>
 #include <limits.h>
@@ -328,4 +328,91 @@ bool admin_is_authenticated(void)
 void admin_logout(void)
 {
     authenticated = false;
+}
+
+
+
+/*
+ * Display protected game data.
+ * Access is granted only to an authenticated Administrator.
+ */
+bool admin_view_protected_data(void)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    ProtectedGameData data;
+
+    if (!persistence_load_game_data(&data)) {
+        printf("\nUnable to read protected game data.\n");
+        printf("The data file may be malformed.\n");
+        return false;
+    }
+
+    printf("\n========== PROTECTED GAME DATA ==========\n");
+
+    printf("Highest Score   : %d\n", data.high_score);
+    printf("Games Played    : %u\n", data.games_played);
+    printf("Last Game Score : %d\n", data.last_score);
+    printf("Last Difficulty : %s\n", data.last_difficulty);
+
+    printf("=========================================\n");
+
+    return true;
+}
+
+
+
+
+/*
+ * Save protected game data only if the Administrator
+ * is currently authenticated.
+ */
+bool admin_save_protected_data(const ProtectedGameData *data)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    if (!persistence_save_game_data(data)) {
+        printf("\nFailed to save protected game data.\n");
+        return false;
+    }
+
+    printf("\nProtected game data updated successfully.\n");
+
+    return true;
+}
+
+
+
+/*
+ * Reset all stored game statistics.
+ * Only an authenticated Administrator can perform this operation.
+ */
+bool admin_reset_protected_data(void)
+{
+    if (!admin_is_authenticated()) {
+        printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    ProtectedGameData data = {
+        .high_score = 0,
+        .games_played = 0,
+        .last_score = 0,
+        .last_difficulty = "Easy"
+    };
+
+    if (!persistence_save_game_data(&data)) {
+        printf("\nFailed to reset protected game data.\n");
+        return false;
+    }
+
+    printf("\nAll protected game data has been reset successfully.\n");
+
+    return true;
 }
