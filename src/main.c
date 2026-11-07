@@ -292,7 +292,7 @@ int main(void) {
         } else if (key == KEY_DOWN) {
             selected = (selected + 1) % 4;
             menu_needs_redraw = true;
-        } else if (key == KEY_QUIT) {
+        } else if (key == KEY_QUIT || key == KEY_ESCAPE) {
             running = false;
         } else if (key == KEY_ENTER) {
             if (selected == 0) {
@@ -316,6 +316,7 @@ int main(void) {
         Sleep(5);
     }
 
+    printf("\033[?25h"); //cursor restored after the game
     shutdown_input();
 
     if (timing_log != NULL) {
