@@ -49,25 +49,9 @@ static bool save_completed_game(const GameState *game) {
         return false;
     }
 
-    ProtectedGameData data;
-
-    if (!persistence_load_game_data(&data)) {
-        printf("\nWarning: Could not read saved game data. Statistics were not updated.\n");
-        return false;
-    }
-
-    if (game->score > data.high_score) {
-        data.high_score = game->score;
-    }
-
-    if (data.games_played < 2147483647U) {
-        data.games_played++;
-    }
-
-    data.last_score = game->score;
-    strcpy(data.last_difficulty, difficulty_name(game->difficulty));
-
-    if (!persistence_save_game_data(&data)) {
+    if (!persistence_record_completed_game(
+            game->score,
+            difficulty_name(game->difficulty))) {
         printf("\nWarning: Could not save game statistics to data/game_data.txt.\n");
         return false;
     }
