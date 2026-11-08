@@ -1,3 +1,4 @@
+
 #include "admin.h"
 #include "persistence.h"
 #include <windows.h>
@@ -28,11 +29,6 @@ typedef struct {
     unsigned long iterations;
 } AdminCredentials;
 
-
-/*
- * Convert a hexadecimal character to its numeric value.
- * Returns -1 for invalid characters.
- */
 static int hex_value(char ch)
 {
     if (ch >= '0' && ch <= '9')
@@ -46,10 +42,6 @@ static int hex_value(char ch)
     return -1;
 }
 
-
-/*
- * Convert a hexadecimal string to bytes.
- */
 static bool hex_to_bytes(
     const char *hex,
     unsigned char *output,
@@ -74,17 +66,8 @@ static bool hex_to_bytes(
     return true;
 }
 
-
 /*
- * Load the locally stored Administrator credentials.
- *
- * Expected file format:
- *
- * iterations=600000
- * salt=<32 hexadecimal characters>
- * hash=<64 hexadecimal characters>
- *
- * The actual values must be generated separately.
+ * Load administrator credentials from the protected configuration file.
  */
 static bool load_credentials(AdminCredentials *credentials)
 {
@@ -108,9 +91,7 @@ static bool load_credentials(AdminCredentials *credentials)
     char hash_hex[HEX_HASH_LENGTH + 1] = {0};
 
     while (fgets(line, sizeof(line), file) != NULL) {
-        /*
-         * Reject lines that do not fit in the buffer.
-         */
+
         if (strchr(line, '\n') == NULL && !feof(file)) {
             fclose(file);
             return false;
@@ -136,6 +117,7 @@ static bool load_credentials(AdminCredentials *credentials)
             found_iterations = true;
         }
         else if (strncmp(line, "salt=", 5) == 0) {
+
             if (found_salt ||
                 strlen(line + 5) != HEX_SALT_LENGTH) {
                 fclose(file);
@@ -146,6 +128,7 @@ static bool load_credentials(AdminCredentials *credentials)
             found_salt = true;
         }
         else if (strncmp(line, "hash=", 5) == 0) {
+
             if (found_hash ||
                 strlen(line + 5) != HEX_HASH_LENGTH) {
                 fclose(file);
@@ -156,15 +139,13 @@ static bool load_credentials(AdminCredentials *credentials)
             found_hash = true;
         }
         else if (line[0] != '\0') {
-            /*
-             * Reject unexpected configuration entries.
-             */
             fclose(file);
             return false;
         }
     }
 
     bool read_error = ferror(file) != 0;
+
     fclose(file);
 
     if (read_error ||
@@ -195,12 +176,14 @@ static bool load_credentials(AdminCredentials *credentials)
 
     credentials->iterations = iterations;
 
+    SecureZeroMemory(salt_hex, sizeof(salt_hex));
+    SecureZeroMemory(hash_hex, sizeof(hash_hex));
+
     return true;
 }
 
-
 /*
- * Derive a password hash using PBKDF2-HMAC-SHA-256.
+ * Derive password hash using PBKDF2-HMAC-SHA-256.
  */
 static bool derive_password_hash(
     const char *password,
@@ -248,10 +231,8 @@ static bool derive_password_hash(
     return status >= 0;
 }
 
-
 /*
- * Compare two byte arrays without returning early on
- * the first differing byte.
+ * Constant-time hash comparison.
  */
 static bool constant_time_equal(
     const unsigned char *first,
@@ -266,16 +247,12 @@ static bool constant_time_equal(
     return difference == 0;
 }
 
-
 /*
- * Authenticate the Administrator.
+ * Authenticate administrator.
  */
 bool admin_authenticate(const char *password)
 {
-    /*
-     * A new authentication attempt must not retain an
-     * earlier authenticated state after a failure.
-     */
+    /* Clear any previous authenticated session. */
     authenticated = false;
 
     if (password == NULL)
@@ -284,16 +261,20 @@ bool admin_authenticate(const char *password)
     AdminCredentials credentials = {0};
     unsigned char calculated_hash[HASH_LENGTH] = {0};
 
-    if (!load_credentials(&credentials))
+    if (!load_credentials(&credentials)) {
+        SecureZeroMemory(&credentials, sizeof(credentials));
         return false;
+    }
 
     if (!derive_password_hash(
             password,
             credentials.salt,
             credentials.iterations,
             calculated_hash)) {
+
         SecureZeroMemory(&credentials, sizeof(credentials));
         SecureZeroMemory(calculated_hash, sizeof(calculated_hash));
+
         return false;
     }
 
@@ -311,30 +292,24 @@ bool admin_authenticate(const char *password)
     return matches;
 }
 
-
 /*
- * Check whether the current process has an authenticated
- * Administrator session.
+ * Check administrator authentication.
  */
 bool admin_is_authenticated(void)
 {
     return authenticated;
 }
 
-
 /*
- * Log out the Administrator.
+ * Log out administrator.
  */
 void admin_logout(void)
 {
     authenticated = false;
 }
 
-
-
 /*
  * Display protected game data.
- * Access is granted only to an authenticated Administrator.
  */
 bool admin_view_protected_data(void)
 {
@@ -363,17 +338,18 @@ bool admin_view_protected_data(void)
     return true;
 }
 
-
-
-
 /*
- * Save protected game data only if the Administrator
- * is currently authenticated.
+ * Save protected game data.
  */
 bool admin_save_protected_data(const ProtectedGameData *data)
 {
     if (!admin_is_authenticated()) {
         printf("\nAccess denied. Administrator authentication required.\n");
+        return false;
+    }
+
+    if (data == NULL) {
+        printf("\nInvalid protected game data.\n");
         return false;
     }
 
@@ -387,11 +363,8 @@ bool admin_save_protected_data(const ProtectedGameData *data)
     return true;
 }
 
-
-
 /*
  * Reset all stored game statistics.
- * Only an authenticated Administrator can perform this operation.
  */
 bool admin_reset_protected_data(void)
 {
