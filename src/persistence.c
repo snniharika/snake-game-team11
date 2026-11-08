@@ -1,10 +1,14 @@
+
 #include "persistence.h"
+#include "admin.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #define GAME_DATA_PATH "data/game_data.txt"
+#define MAX_GAMES_PLAYED 2147483647U
 
 static void initialize_empty_data(ProtectedGameData *data)
 {
@@ -17,12 +21,40 @@ static void initialize_empty_data(ProtectedGameData *data)
 
 static bool valid_difficulty(const char *difficulty)
 {
+    if (difficulty == NULL) {
+        return false;
+    }
+
     return strcmp(difficulty, "Easy") == 0 ||
            strcmp(difficulty, "Medium") == 0 ||
            strcmp(difficulty, "Hard") == 0;
 }
 
-bool persistence_load_game_data(ProtectedGameData *data)
+static bool valid_game_data(const ProtectedGameData *data)
+{
+    if (data == NULL) {
+        return false;
+    }
+
+    if (data->high_score < 0 ||
+        data->last_score < 0 ||
+        data->games_played > MAX_GAMES_PLAYED) {
+        return false;
+    }
+
+    if (memchr(data->last_difficulty, '\0',
+               sizeof(data->last_difficulty)) == NULL) {
+        return false;
+    }
+
+    return valid_difficulty(data->last_difficulty);
+}
+
+/*
+ * Internal function.
+ * Reads stored data without exposing it through the public API.
+ */
+static bool load_game_data_internal(ProtectedGameData *data)
 {
     if (data == NULL) {
         return false;
@@ -65,10 +97,7 @@ bool persistence_load_game_data(ProtectedGameData *data)
     if (fields_read != 4 ||
         extra_content ||
         read_error ||
-        data->high_score < 0 ||
-        data->last_score < 0 ||
-        data->games_played > 2147483647U ||
-        !valid_difficulty(data->last_difficulty)) {
+        !valid_game_data(data)) {
 
         initialize_empty_data(data);
         return false;
@@ -77,30 +106,13 @@ bool persistence_load_game_data(ProtectedGameData *data)
     return true;
 }
 
-
-
-
 /*
- * Save updated game data to the local configuration file.
+ * Internal function.
+ * Writes validated data to the storage file.
  */
-bool persistence_save_game_data(const ProtectedGameData *data)
+static bool save_game_data_internal(const ProtectedGameData *data)
 {
-    if (data == NULL) {
-        return false;
-    }
-
-    /*
-     * Validate values before writing them.
-     */
-    if (data->high_score < 0 ||
-        data->last_score < 0 ||
-        data->games_played > 2147483647U) {
-        return false;
-    }
-
-    if (strcmp(data->last_difficulty, "Easy") != 0 &&
-        strcmp(data->last_difficulty, "Medium") != 0 &&
-        strcmp(data->last_difficulty, "Hard") != 0) {
+    if (!valid_game_data(data)) {
         return false;
     }
 
@@ -129,4 +141,67 @@ bool persistence_save_game_data(const ProtectedGameData *data)
     }
 
     return success;
+}
+
+/*
+ * Public administrative operation.
+ * Only authenticated administrators may read protected game data.
+ */
+bool persistence_load_game_data(ProtectedGameData *data)
+{
+    if (!admin_is_authenticated()) {
+        return false;
+    }
+
+    if (data == NULL) {
+        return false;
+    }
+
+    return load_game_data_internal(data);
+}
+
+/*
+ * Public administrative operation.
+ * Only authenticated administrators may directly modify protected data.
+ */
+bool persistence_save_game_data(const ProtectedGameData *data)
+{
+    if (!admin_is_authenticated()) {
+        return false;
+    }
+
+    return save_game_data_internal(data);
+}
+
+/*
+ * Gameplay operation.
+ * Allows the game to record a completed game without exposing
+ * the protected data-loading and data-saving functions to players.
+ */
+bool persistence_record_completed_game(int score, const char *difficulty)
+{
+    if (score < 0 || !valid_difficulty(difficulty)) {
+        return false;
+    }
+
+    ProtectedGameData data;
+
+    if (!load_game_data_internal(&data)) {
+        return false;
+    }
+
+    if (data.games_played >= MAX_GAMES_PLAYED) {
+        return false;
+    }
+
+    data.games_played++;
+    data.last_score = score;
+
+    if (score > data.high_score) {
+        data.high_score = score;
+    }
+
+    strcpy(data.last_difficulty, difficulty);
+
+    return save_game_data_internal(&data);
 }
