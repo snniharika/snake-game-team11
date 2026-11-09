@@ -5,6 +5,27 @@
 
 #define ROW_EXTRA 4
 
+/*
+ * Validate the game state before accessing the segments array.
+ * Use sizeof to obtain the actual array capacity.
+ */
+static bool valid_render_state(const GameState *game)
+{
+    if (game == NULL) {
+        return false;
+    }
+
+    size_t segments_capacity =
+        sizeof(game->segments) / sizeof(game->segments[0]);
+
+    if (game->length < 1 ||
+        (size_t)game->length > segments_capacity) {
+        return false;
+    }
+
+    return true;
+}
+
 static void clear_screen(void)
 {
     printf("\033[?25h");
@@ -18,13 +39,17 @@ static const char *difficulty_name(Difficulty difficulty)
 }
 
 /*
- * Build the complete board in memory before displaying it.
- * This reduces the number of individual console output operations.
+ * Build the complete board in memory.
+ * Validate the game state before accessing any snake segment.
  */
-static void build_board_frame(
+static bool build_board_frame(
     const GameState *game,
     char frame[BOARD_HEIGHT * (BOARD_WIDTH + ROW_EXTRA)])
 {
+    if (!valid_render_state(game) || frame == NULL) {
+        return false;
+    }
+
     char board[BOARD_HEIGHT][BOARD_WIDTH];
 
     for (int y = 0; y < BOARD_HEIGHT; y++) {
@@ -39,9 +64,7 @@ static void build_board_frame(
     }
 
     /* Draw the snake body. */
-    for (int i = 1;
-         i < game->length && i < BOARD_WIDTH * BOARD_HEIGHT;
-         i++) {
+    for (int i = 1; i < game->length; i++) {
         Position segment = game->segments[i];
 
         if (segment.x > 0 && segment.x < BOARD_WIDTH - 1 &&
@@ -50,20 +73,18 @@ static void build_board_frame(
         }
     }
 
-    /* Draw the food. */
-    if (game->food.x >= 0 && game->food.x < BOARD_WIDTH &&
-        game->food.y >= 0 && game->food.y < BOARD_HEIGHT) {
+    /* Draw food only when it is inside the board. */
+    if (game->food.x > 0 && game->food.x < BOARD_WIDTH - 1 &&
+        game->food.y > 0 && game->food.y < BOARD_HEIGHT - 1) {
         board[game->food.y][game->food.x] = '*';
     }
 
     /* Draw the snake head last. */
-    if (game->length > 0) {
-        Position head = game->segments[0];
+    Position head = game->segments[0];
 
-        if (head.x >= 0 && head.x < BOARD_WIDTH &&
-            head.y >= 0 && head.y < BOARD_HEIGHT) {
-            board[head.y][head.x] = 'O';
-        }
+    if (head.x > 0 && head.x < BOARD_WIDTH - 1 &&
+        head.y > 0 && head.y < BOARD_HEIGHT - 1) {
+        board[head.y][head.x] = 'O';
     }
 
     /* Copy all rows into one output buffer. */
@@ -76,17 +97,21 @@ static void build_board_frame(
         memcpy(frame + offset, "\033[K\n", ROW_EXTRA);
         offset += ROW_EXTRA;
     }
+
+    return true;
 }
 
 static void draw_board(const GameState *game)
 {
-    if (game == NULL) {
+    if (!valid_render_state(game)) {
         return;
     }
 
     char frame[BOARD_HEIGHT * (BOARD_WIDTH + ROW_EXTRA)];
 
-    build_board_frame(game, frame);
+    if (!build_board_frame(game, frame)) {
+        return;
+    }
 
     fwrite(frame, 1, sizeof(frame), stdout);
 }
@@ -94,6 +119,10 @@ static void draw_board(const GameState *game)
 void render_menu(int selected, Difficulty difficulty)
 {
     const char *levels[] = {"Easy", "Medium", "Hard"};
+
+    if (difficulty < EASY || difficulty > HARD) {
+        difficulty = EASY;
+    }
 
     clear_screen();
 
@@ -120,14 +149,16 @@ void render_menu(int selected, Difficulty difficulty)
 
 void render_game(const GameState *game)
 {
-    if (game == NULL) {
+    if (!valid_render_state(game)) {
         return;
     }
 
     char output[4096];
     char board_frame[BOARD_HEIGHT * (BOARD_WIDTH + ROW_EXTRA)];
 
-    build_board_frame(game, board_frame);
+    if (!build_board_frame(game, board_frame)) {
+        return;
+    }
 
     int header_length = snprintf(
         output,
@@ -159,7 +190,6 @@ void render_game(const GameState *game)
 
     used += (size_t)footer_length;
 
-    /* Display the complete game screen in one write. */
     fwrite(output, 1, used, stdout);
     fflush(stdout);
 }
@@ -167,7 +197,7 @@ void render_game(const GameState *game)
 /* SNK-F-013: Pause screen. */
 void render_pause_menu(const GameState *game, int selected)
 {
-    if (game == NULL) {
+    if (!valid_render_state(game)) {
         return;
     }
 
@@ -188,7 +218,7 @@ void render_pause_menu(const GameState *game, int selected)
 /* SNK-F-010 / SNK-F-012: Game Over screen. */
 void render_game_over(const GameState *game, int selected)
 {
-    if (game == NULL) {
+    if (!valid_render_state(game)) {
         return;
     }
 
