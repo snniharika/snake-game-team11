@@ -1,3 +1,4 @@
+
 #ifndef PERSISTENCE_H
 #define PERSISTENCE_H
 
@@ -10,10 +11,10 @@ typedef struct {
     char last_difficulty[16];
 } ProtectedGameData;
 
-/* Load stored game data from the local file. */
 bool persistence_load_game_data(ProtectedGameData *data);
-
-/* Save updated game data to the local file. */
 bool persistence_save_game_data(const ProtectedGameData *data);
+
+/* Records a completed game without exposing protected data to players. */
+bool persistence_record_completed_game(int score, const char *difficulty);
 
 #endif
