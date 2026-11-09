@@ -6,6 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <errno.h>
 
 #define GAME_DATA_PATH "data/game_data.txt"
 #define MAX_GAMES_PLAYED 2147483647U
@@ -60,12 +61,21 @@ static bool load_game_data_internal(ProtectedGameData *data)
         return false;
     }
 
-    initialize_empty_data(data);
+    ProtectedGameData loaded_data;
+    initialize_empty_data(&loaded_data);
 
+    errno = 0;
     FILE *file = fopen(GAME_DATA_PATH, "r");
 
     if (file == NULL) {
-        return true;
+        int open_error = errno;
+
+        if (open_error == ENOENT) {
+            *data = loaded_data;
+            return true;
+        }
+
+        return false;
     }
 
     int fields_read = fscanf(
@@ -74,10 +84,10 @@ static bool load_game_data_internal(ProtectedGameData *data)
         "games_played=%u\n"
         "last_score=%d\n"
         "last_difficulty=%15s",
-        &data->high_score,
-        &data->games_played,
-        &data->last_score,
-        data->last_difficulty
+        &loaded_data.high_score,
+        &loaded_data.games_played,
+        &loaded_data.last_score,
+        loaded_data.last_difficulty
     );
 
     int ch;
@@ -91,18 +101,17 @@ static bool load_game_data_internal(ProtectedGameData *data)
     }
 
     bool read_error = ferror(file) != 0;
-
-    fclose(file);
+    bool close_error = fclose(file) != 0;
 
     if (fields_read != 4 ||
         extra_content ||
         read_error ||
-        !valid_game_data(data)) {
-
-        initialize_empty_data(data);
+        close_error ||
+        !valid_game_data(&loaded_data)) {
         return false;
     }
 
+    *data = loaded_data;
     return true;
 }
 
